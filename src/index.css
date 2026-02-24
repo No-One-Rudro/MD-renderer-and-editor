@@ -1,0 +1,35 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* 
+  Override KaTeX text rendering to use system fonts.
+  This ensures complex scripts like Bangla and Hindi are rendered correctly
+  by the browser's native text shaping engine, rather than KaTeX's byte-by-byte
+  positioning which breaks complex ligatures.
+*/
+.katex .text {
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif !important;
+}
+
+.katex {
+  font-size: 1.1em;
+}
+
+/* Make sure the editor and preview scrollbars look nice */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa;
+}
