@@ -150,7 +150,7 @@ export const Editor: React.FC<EditorProps> = ({
       ) : (
         <textarea
           ref={textareaRef}
-          className="flex-1 w-full h-full p-8 resize-none focus:outline-none font-mono text-sm text-[var(--text-primary)] bg-[var(--bg-primary)] leading-relaxed transition-colors duration-200"
+          className="flex-1 w-full h-full p-8 resize-none focus:outline-none font-mono text-sm text-[var(--text-primary)] bg-[var(--bg-primary)] leading-relaxed transition-colors duration-200 whitespace-pre overflow-x-auto"
           value={content}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}

@@ -70,7 +70,7 @@ export const VirtualizedPreview: React.FC<VirtualizedPreviewProps> = ({ content,
         data={chunks}
         overscan={overscan}
         itemContent={(index, chunk) => (
-          <div className="px-4 md:px-8 py-4 markdown-body">
+          <div className="px-4 md:px-8 py-1 markdown-body">
             <MarkdownRenderer 
               content={chunk.content} 
               syntaxHighlight={settings.syntaxHighlightRendered} 
