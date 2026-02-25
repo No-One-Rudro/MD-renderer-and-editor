@@ -1,14 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Editor } from './components/Editor';
-import { Preview } from './components/Preview';
-import { Note, loadNotes, saveNotes, createNote } from './store';
-import { SplitSquareHorizontal, Eye, Edit3 } from 'lucide-react';
+import { VirtualizedPreview } from './components/Preview/VirtualizedPreview';
+import { BufferedPreview } from './components/Preview/BufferedPreview';
+import { LivePreview } from './components/Preview/LivePreview';
+import { SettingsModal } from './components/SettingsModal';
+import { FindReplace } from './components/FindReplace';
+import { TopBar } from './components/Toolbar/TopBar';
+import { Note, loadNotes, saveNotes, createNote, loadTheme } from './store';
+import { useSettings } from './context/SettingsContext';
+import clsx from 'clsx';
+import welcomeNote from './assets/welcome-note.md?raw';
 
 export default function App() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'split' | 'edit' | 'preview'>('split');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [scrollInfo, setScrollInfo] = useState<{ percentage: number, topLine: number }>({ percentage: 0, topLine: 0 });
+  const [debouncedContent, setDebouncedContent] = useState<string>('');
+  
+  const { settings } = useSettings();
+  
+  // New state for menu and features
+  const [showFindReplace, setShowFindReplace] = useState(false);
+  const [wordCount, setWordCount] = useState<{words: number, chars: number} | null>(null);
+
+  // Initialize theme
+  useEffect(() => {
+    const savedTheme = loadTheme();
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  }, []);
+
+  // ... (inside App component)
 
   useEffect(() => {
     const loadedNotes = loadNotes();
@@ -17,6 +41,8 @@ export default function App() {
       setActiveNoteId(loadedNotes[0].id);
     } else {
       const newNote = createNote();
+      newNote.title = 'Welcome Note';
+      newNote.content = welcomeNote;
       setNotes([newNote]);
       setActiveNoteId(newNote.id);
     }
@@ -30,10 +56,52 @@ export default function App() {
 
   const activeNote = notes.find((n) => n.id === activeNoteId) || null;
 
+  // Debounce content for preview to prevent flickering/reloads
+  useEffect(() => {
+    if (!activeNote) return;
+    const timer = setTimeout(() => {
+      setDebouncedContent(activeNote.content);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [activeNote?.content]);
+
+  // Immediate update when switching notes
+  useEffect(() => {
+    if (activeNote) {
+      setDebouncedContent(activeNote.content);
+    }
+  }, [activeNoteId]);
+
+  // Live word count logic
+  useEffect(() => {
+    if (settings.liveWordCount && activeNote) {
+      calculateWordCount(activeNote.content);
+    } else if (!settings.liveWordCount) {
+      setWordCount(null);
+    }
+  }, [activeNote?.content, settings.liveWordCount]);
+
+  const calculateWordCount = (text: string) => {
+    const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+    const chars = text.length;
+    setWordCount({ words, chars });
+  };
+
+  const handleManualWordCount = () => {
+    if (activeNote) {
+      calculateWordCount(activeNote.content);
+      // Auto-hide after 3 seconds if not live
+      if (!settings.liveWordCount) {
+        setTimeout(() => setWordCount(null), 3000);
+      }
+    }
+  };
+
   const handleCreateNote = () => {
     const newNote = createNote();
     setNotes([newNote, ...notes]);
     setActiveNoteId(newNote.id);
+    setIsSidebarOpen(false);
   };
 
   const handleDeleteNote = (id: string) => {
@@ -42,6 +110,56 @@ export default function App() {
     if (activeNoteId === id) {
       setActiveNoteId(updatedNotes.length > 0 ? updatedNotes[0].id : null);
     }
+  };
+
+  const handleRenameNote = (id: string, newTitle: string) => {
+    setNotes((prev) =>
+      prev.map((note) =>
+        note.id === id ? { ...note, title: newTitle, updatedAt: Date.now() } : note
+      )
+    );
+  };
+
+  const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const newNotes: Note[] = [];
+    let processedCount = 0;
+
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        const newNote = createNote();
+        newNote.title = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
+        newNote.content = content;
+        newNotes.push(newNote);
+        
+        processedCount++;
+        if (processedCount === files.length) {
+          setNotes((prev) => [...newNotes, ...prev]);
+          setActiveNoteId(newNotes[0].id);
+          setIsSidebarOpen(false);
+        }
+      };
+      reader.readAsText(file);
+    });
+    
+    // Reset input
+    event.target.value = '';
+  };
+
+  const handleDownloadNote = (note: Note) => {
+    const blob = new Blob([note.content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${note.title || 'Untitled Note'}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleUpdateContent = (content: string) => {
@@ -61,80 +179,118 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen w-full bg-zinc-100 overflow-hidden font-sans text-zinc-900">
-      <Sidebar
-        notes={notes}
-        activeNoteId={activeNoteId}
-        onSelectNote={setActiveNoteId}
-        onCreateNote={handleCreateNote}
-        onDeleteNote={handleDeleteNote}
-      />
+    <div className="flex h-screen w-full bg-[var(--bg-secondary)] overflow-hidden font-sans text-[var(--text-primary)] transition-colors duration-200">
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar Container */}
+      <div className={`fixed inset-y-0 left-0 z-50 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition-transform duration-300 ease-in-out`}>
+        <Sidebar
+          notes={notes}
+          activeNoteId={activeNoteId}
+          onSelectNote={(id) => {
+            setActiveNoteId(id);
+            setIsSidebarOpen(false);
+          }}
+          onCreateNote={handleCreateNote}
+          onDeleteNote={handleDeleteNote}
+          onRenameNote={handleRenameNote}
+          onImportFile={handleImportFile}
+          onDownloadNote={handleDownloadNote}
+        />
+      </div>
       
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Top Toolbar */}
-        <div className="h-14 bg-white border-b border-zinc-200 flex items-center justify-between px-4 shrink-0">
-          <div className="flex items-center space-x-2">
-            <h1 className="text-lg font-semibold text-zinc-800">
-              {activeNote?.title || 'Markdown & LaTeX Studio'}
-            </h1>
-          </div>
-          
-          <div className="flex items-center space-x-1 bg-zinc-100 p-1 rounded-lg border border-zinc-200">
-            <button
-              onClick={() => setViewMode('edit')}
-              className={`p-1.5 rounded-md flex items-center space-x-1 text-sm font-medium transition-colors ${
-                viewMode === 'edit' ? 'bg-white shadow-sm text-indigo-600' : 'text-zinc-500 hover:text-zinc-900'
-              }`}
-              title="Edit Only"
-            >
-              <Edit3 size={16} />
-              <span className="hidden sm:inline">Edit</span>
-            </button>
-            <button
-              onClick={() => setViewMode('split')}
-              className={`p-1.5 rounded-md flex items-center space-x-1 text-sm font-medium transition-colors ${
-                viewMode === 'split' ? 'bg-white shadow-sm text-indigo-600' : 'text-zinc-500 hover:text-zinc-900'
-              }`}
-              title="Split View"
-            >
-              <SplitSquareHorizontal size={16} />
-              <span className="hidden sm:inline">Split</span>
-            </button>
-            <button
-              onClick={() => setViewMode('preview')}
-              className={`p-1.5 rounded-md flex items-center space-x-1 text-sm font-medium transition-colors ${
-                viewMode === 'preview' ? 'bg-white shadow-sm text-indigo-600' : 'text-zinc-500 hover:text-zinc-900'
-              }`}
-              title="Preview Only"
-            >
-              <Eye size={16} />
-              <span className="hidden sm:inline">Preview</span>
-            </button>
-          </div>
-        </div>
+      <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
+        <TopBar 
+          title={activeNote?.title || 'Markdown & LaTeX Studio'}
+          onCountWords={handleManualWordCount}
+          wordCountResult={wordCount}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onToggleFindReplace={() => setShowFindReplace(!showFindReplace)}
+          onToggleSidebar={() => setIsSidebarOpen(true)}
+        />
+
+        {/* Find and Replace Overlay */}
+        {showFindReplace && activeNote && (
+          <FindReplace 
+            content={activeNote.content} 
+            onChange={handleUpdateContent} 
+            onClose={() => setShowFindReplace(false)} 
+          />
+        )}
 
         {/* Main Content Area */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex overflow-hidden flex-col md:flex-row relative">
           {activeNote ? (
             <>
-              {(viewMode === 'edit' || viewMode === 'split') && (
-                <div className={`h-full ${viewMode === 'split' ? 'w-1/2 border-r border-zinc-200' : 'w-full'}`}>
-                  <Editor content={activeNote.content} onChange={handleUpdateContent} />
+              {/* Mode 1: Raw - Full Editor */}
+              {settings.viewMode === 'raw' && (
+                <div className="w-full h-full">
+                  <Editor 
+                    content={activeNote.content} 
+                    onChange={handleUpdateContent} 
+                    onScroll={setScrollInfo}
+                    autoCommentNextLine={settings.autoCommentNextLine}
+                    syntaxHighlightRaw={settings.syntaxHighlightRaw}
+                  />
                 </div>
               )}
-              {(viewMode === 'preview' || viewMode === 'split') && (
-                <div className={`h-full ${viewMode === 'split' ? 'w-1/2' : 'w-full'}`}>
-                  <Preview content={activeNote.content} />
+
+              {/* Mode 2: Split - Editor + Virtualized Preview */}
+              {settings.viewMode === 'split' && (
+                <>
+                  <div className="w-full h-1/2 md:w-1/2 md:h-full order-2 md:order-1 border-t md:border-t-0 md:border-r border-[var(--border-color)]">
+                    <Editor 
+                      content={activeNote.content} 
+                      onChange={handleUpdateContent} 
+                      onScroll={setScrollInfo}
+                      autoCommentNextLine={settings.autoCommentNextLine}
+                      syntaxHighlightRaw={settings.syntaxHighlightRaw}
+                    />
+                  </div>
+                  <div className="w-full h-1/2 md:w-1/2 md:h-full order-1 md:order-2 bg-[var(--bg-secondary)]">
+                    <VirtualizedPreview 
+                      content={debouncedContent} 
+                      topLine={scrollInfo.topLine} 
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Mode 3: Simple Preview - Buffered Full Preview */}
+              {settings.viewMode === 'preview' && (
+                <div className="w-full h-full bg-[var(--bg-secondary)]">
+                  <BufferedPreview content={debouncedContent} />
+                </div>
+              )}
+
+              {/* Mode 4: Live - Obsidian-like */}
+              {settings.viewMode === 'live' && (
+                <div className="w-full h-full bg-[var(--bg-secondary)]">
+                  <LivePreview 
+                    content={debouncedContent}
+                    onChange={handleUpdateContent}
+                  />
                 </div>
               )}
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-zinc-400">
+            <div className="flex-1 flex items-center justify-center text-[var(--text-tertiary)] p-4 text-center">
               Select or create a note to begin.
             </div>
           )}
         </div>
       </div>
+
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+      />
     </div>
   );
 }
