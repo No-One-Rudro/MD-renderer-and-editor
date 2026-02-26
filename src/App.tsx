@@ -18,9 +18,26 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [scrollInfo, setScrollInfo] = useState<{ percentage: number, topLine: number }>({ percentage: 0, topLine: 0 });
+  const [scrollToLine, setScrollToLine] = useState<number | null>(null);
   const [debouncedContent, setDebouncedContent] = useState<string>('');
   
   const { settings } = useSettings();
+
+  // ... (rest of the component)
+
+  const handlePreviewClick = (line: number) => {
+    setScrollToLine(line);
+    // Reset after a short delay so we can scroll to the same line again if needed
+    // or just let the Editor handle the change. 
+    // Actually, if we click the same line twice, the effect won't trigger. 
+    // But scrolling usually changes the view, so clicking again implies we moved away.
+    // To be safe, we can reset it, but that might cause a loop if we are not careful.
+    // Let's just set it. If the user scrolls manually, the Editor component doesn't "unset" this prop,
+    // but the prop only triggers on change.
+    // To allow re-triggering, we can use a timestamp or object, but simple number is fine for now.
+  };
+
+  // ... (rest of the component)
   
   // New state for menu and features
   const [showFindReplace, setShowFindReplace] = useState(false);
@@ -120,32 +137,50 @@ export default function App() {
     );
   };
 
-  const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    const newNotes: Note[] = [];
-    let processedCount = 0;
+    // Filter for text/markdown files
+    const validFiles = Array.from(files).filter(f => 
+      f.name.endsWith('.md') || f.name.endsWith('.txt') || f.name.endsWith('.markdown') || f.name.endsWith('.tex') || f.type.startsWith('text/') || f.name.includes('.') === false
+    );
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const content = e.target?.result as string;
+    if (validFiles.length === 0) {
+      alert("No valid text or markdown files found.");
+      event.target.value = '';
+      return;
+    }
+
+    // Process files sequentially to add them one by one to the sidebar
+    for (let i = 0; i < validFiles.length; i++) {
+      const file = validFiles[i];
+      try {
+        const content = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve((e.target?.result as string) || '');
+          reader.onerror = reject;
+          reader.readAsText(file);
+        });
+
         const newNote = createNote();
         newNote.title = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
         newNote.content = content;
-        newNotes.push(newNote);
+
+        // Update state incrementally
+        setNotes((prev) => [newNote, ...prev]);
         
-        processedCount++;
-        if (processedCount === files.length) {
-          setNotes((prev) => [...newNotes, ...prev]);
-          setActiveNoteId(newNotes[0].id);
-          setIsSidebarOpen(false);
+        // If it's the first file imported, set it as active
+        if (i === 0) {
+          setActiveNoteId(newNote.id);
         }
-      };
-      reader.readAsText(file);
-    });
+        
+      } catch (error) {
+        console.error(`Error reading file ${file.name}:`, error);
+      }
+    }
     
+    setIsSidebarOpen(false);
     // Reset input
     event.target.value = '';
   };
@@ -251,12 +286,14 @@ export default function App() {
                       onScroll={setScrollInfo}
                       autoCommentNextLine={settings.autoCommentNextLine}
                       syntaxHighlightRaw={settings.syntaxHighlightRaw}
+                      scrollToLine={scrollToLine}
                     />
                   </div>
                   <div className="w-full h-1/2 md:w-1/2 md:h-full order-1 md:order-2 bg-[var(--bg-secondary)]">
                     <VirtualizedPreview 
                       content={debouncedContent} 
                       topLine={scrollInfo.topLine} 
+                      onChunkClick={handlePreviewClick}
                     />
                   </div>
                 </>

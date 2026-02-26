@@ -9,6 +9,7 @@ interface EditorProps {
   onScroll?: (info: { percentage: number, topLine: number }) => void;
   autoCommentNextLine?: boolean;
   syntaxHighlightRaw?: boolean;
+  scrollToLine?: number | null;
 }
 
 export const Editor: React.FC<EditorProps> = ({ 
@@ -16,11 +17,28 @@ export const Editor: React.FC<EditorProps> = ({
   onChange, 
   onScroll,
   autoCommentNextLine = false,
-  syntaxHighlightRaw = false
+  syntaxHighlightRaw = false,
+  scrollToLine
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [languagesLoaded, setLanguagesLoaded] = useState(false);
+
+  // Handle external scroll request (reverse sync)
+  useEffect(() => {
+    if (scrollToLine !== undefined && scrollToLine !== null) {
+      const lineHeight = 22.75; // Estimated line height
+      const padding = 32; // p-8
+      const targetScrollTop = (scrollToLine * lineHeight) + padding;
+      
+      if (containerRef.current) {
+        containerRef.current.scrollTo({
+          top: targetScrollTop,
+          behavior: 'smooth'
+        });
+      }
+    }
+  }, [scrollToLine]);
 
   // ... (useEffect for Prism remains same)
 
@@ -134,7 +152,7 @@ export const Editor: React.FC<EditorProps> = ({
       {syntaxHighlightRaw ? (
         <div className="min-h-full p-8" onClick={handleKeyUp} onKeyUp={handleKeyUp}>
           <EditorComponent
-            value={content}
+            value={content || ''}
             onValueChange={onChange}
             highlight={highlightWithPrism}
             padding={0}
@@ -151,7 +169,7 @@ export const Editor: React.FC<EditorProps> = ({
         <textarea
           ref={textareaRef}
           className="flex-1 w-full h-full p-8 resize-none focus:outline-none font-mono text-sm text-[var(--text-primary)] bg-[var(--bg-primary)] leading-relaxed transition-colors duration-200 whitespace-pre overflow-x-auto"
-          value={content}
+          value={content || ''}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           onKeyUp={handleKeyUp}

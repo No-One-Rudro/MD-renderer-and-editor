@@ -8,9 +8,10 @@ import clsx from 'clsx';
 interface VirtualizedPreviewProps {
   content: string;
   topLine?: number;
+  onChunkClick?: (line: number) => void;
 }
 
-export const VirtualizedPreview: React.FC<VirtualizedPreviewProps> = ({ content, topLine }) => {
+export const VirtualizedPreview: React.FC<VirtualizedPreviewProps> = ({ content, topLine, onChunkClick }) => {
   const { settings } = useSettings();
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const [overscan, setOverscan] = useState(2000); // Default start
@@ -70,7 +71,10 @@ export const VirtualizedPreview: React.FC<VirtualizedPreviewProps> = ({ content,
         data={chunks}
         overscan={overscan}
         itemContent={(index, chunk) => (
-          <div className="px-4 md:px-8 py-1 markdown-body">
+          <div 
+            className="px-4 md:px-8 py-1 markdown-body cursor-pointer hover:bg-black/5 transition-colors duration-200 rounded-sm"
+            onClick={() => onChunkClick?.(chunk.startLine)}
+          >
             <MarkdownRenderer 
               content={chunk.content} 
               syntaxHighlight={settings.syntaxHighlightRendered} 
