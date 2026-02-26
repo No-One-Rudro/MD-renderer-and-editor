@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig, loadEnv} from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import prism from 'vite-plugin-prismjs';
 
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
@@ -10,6 +11,12 @@ export default defineConfig(({mode}) => {
     plugins: [
       react(),
       tailwindcss(),
+      prism({
+        languages: ['markdown', 'latex', 'markup'],
+        plugins: ['line-numbers'],
+        theme: 'tomorrow',
+        css: true,
+      }),
       VitePWA({
         registerType: 'autoUpdate',
         devOptions: {
@@ -23,7 +30,7 @@ export default defineConfig(({mode}) => {
           icons: []
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,woff,ttf}'],
           maximumFileSizeToCacheInBytes: 5000000
         }
       })

@@ -6,30 +6,49 @@ interface BufferedPreviewProps {
   content: string;
 }
 
-const CHUNK_SIZE = 5000; // Characters to render initially
+const CHUNK_SIZE = 15000; // X characters max buffer
 
 export const BufferedPreview: React.FC<BufferedPreviewProps> = ({ content }) => {
   const { settings } = useSettings();
-  const [visibleContent, setVisibleContent] = useState('');
-  const [renderLimit, setRenderLimit] = useState(CHUNK_SIZE);
+  const [bufferStart, setBufferStart] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Reset limit when content changes significantly (new file)
-  // Or maybe just update visible content based on limit
-  useEffect(() => {
-    setVisibleContent(content.slice(0, renderLimit));
-  }, [content, renderLimit]);
+  const safeBufferStart = Math.max(0, Math.min(bufferStart, content.length - CHUNK_SIZE));
+  const visibleContent = content.length > CHUNK_SIZE 
+    ? content.slice(safeBufferStart, safeBufferStart + CHUNK_SIZE) 
+    : content;
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (content.length <= CHUNK_SIZE) return;
+    
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    const scrollPercentage = scrollTop / (scrollHeight - clientHeight);
     
     // If scrolled to 2/3 of the current content height
-    if (scrollTop + clientHeight > scrollHeight * 0.66) {
-      if (renderLimit < content.length) {
-        setRenderLimit(prev => Math.min(prev + CHUNK_SIZE, content.length));
+    if (scrollPercentage > 0.66) {
+      if (safeBufferStart + CHUNK_SIZE < content.length) {
+        setBufferStart(Math.min(safeBufferStart + CHUNK_SIZE / 2, content.length - CHUNK_SIZE));
+        // Adjust scroll position to maintain visual continuity (approximate)
+        if (containerRef.current) {
+          containerRef.current.scrollTop = scrollHeight * 0.33;
+        }
+      }
+    } else if (scrollPercentage < 0.33) {
+      if (safeBufferStart > 0) {
+        setBufferStart(Math.max(0, safeBufferStart - CHUNK_SIZE / 2));
+        // Adjust scroll position to maintain visual continuity (approximate)
+        if (containerRef.current) {
+          containerRef.current.scrollTop = scrollHeight * 0.66;
+        }
       }
     }
   };
+
+  useEffect(() => {
+    if (content.length < safeBufferStart) {
+      setBufferStart(0);
+    }
+  }, [content, safeBufferStart]);
 
   return (
     <div 
@@ -44,11 +63,6 @@ export const BufferedPreview: React.FC<BufferedPreviewProps> = ({ content }) => 
         content={visibleContent} 
         syntaxHighlight={settings.syntaxHighlightRendered} 
       />
-      {renderLimit < content.length && (
-        <div className="py-4 text-center text-[var(--text-tertiary)] text-sm">
-          Loading more content...
-        </div>
-      )}
     </div>
   );
 };

@@ -1,12 +1,14 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Theme } from './lib/themes';
+import { get, set } from 'idb-keyval';
 
 export interface AppSettings {
   liveWordCount: boolean;
   autoCommentNextLine: boolean;
   syntaxHighlightRaw: boolean;
   syntaxHighlightRendered: boolean;
-  viewMode: 'raw' | 'split' | 'preview' | 'live';
+  syncScroll: boolean;
+  viewMode: 'raw' | 'split' | 'preview' | 'lightning' | 'live';
 }
 
 const defaultSettings: AppSettings = {
@@ -14,6 +16,7 @@ const defaultSettings: AppSettings = {
   autoCommentNextLine: false,
   syntaxHighlightRaw: false,
   syntaxHighlightRendered: true,
+  syncScroll: false,
   viewMode: 'raw',
 };
 
@@ -47,19 +50,30 @@ export interface Note {
 const STORAGE_KEY = 'markdown_studio_notes';
 const THEME_KEY = 'markdown_studio_theme';
 
-export const loadNotes = (): Note[] => {
+export const loadNotes = async (): Promise<Note[]> => {
   try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
+    const data = await get(STORAGE_KEY);
+    if (data) return data;
+    
+    // Fallback to localStorage for migration
+    const localData = localStorage.getItem(STORAGE_KEY);
+    if (localData) {
+      const parsed = JSON.parse(localData);
+      await set(STORAGE_KEY, parsed);
+      return parsed;
+    }
+    return [];
   } catch (e) {
     console.error('Failed to load notes', e);
     return [];
   }
 };
 
-export const saveNotes = (notes: Note[]) => {
+export const saveNotes = async (notes: Note[]): Promise<void> => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+    await set(STORAGE_KEY, notes);
+    // Also save to localStorage as a backup if it's small enough, or just remove it
+    // localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
   } catch (e) {
     console.error('Failed to save notes', e);
   }

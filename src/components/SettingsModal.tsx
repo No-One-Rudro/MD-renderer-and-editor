@@ -145,6 +145,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
                   <label className="flex items-center justify-between p-3 border border-[var(--border-color)] rounded-lg hover:bg-[var(--bg-secondary)] cursor-pointer transition-colors">
                     <div>
+                      <div className="font-medium text-[var(--text-primary)]">Sync Scroll</div>
+                      <div className="text-xs text-[var(--text-tertiary)] mt-1">Synchronize scrolling between editor and preview in Split View.</div>
+                    </div>
+                    <input 
+                      type="checkbox" 
+                      checked={settings.syncScroll} 
+                      onChange={(e) => handleSettingChange('syncScroll', e.target.checked)}
+                      className="w-4 h-4 text-[var(--accent-color)] rounded focus:ring-[var(--accent-color)] border-[var(--border-color)]"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between p-3 border border-[var(--border-color)] rounded-lg hover:bg-[var(--bg-secondary)] cursor-pointer transition-colors">
+                    <div>
                       <div className="font-medium text-[var(--text-primary)]">Syntax Highlight Raw</div>
                       <div className="text-xs text-[var(--text-tertiary)] mt-1">Enable syntax highlighting in the raw markdown editor.</div>
                     </div>

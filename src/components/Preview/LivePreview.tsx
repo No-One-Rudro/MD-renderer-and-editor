@@ -16,19 +16,46 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ content, onChange }) =
   const { settings } = useSettings();
   const [editingChunkIndex, setEditingChunkIndex] = useState<number | null>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
-  const [overscan, setOverscan] = useState(2000);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [overscan, setOverscan] = useState<{ main: number, reverse: number }>({ main: 2000, reverse: 2000 });
+
+  const [tempChunkContent, setTempChunkContent] = useState<string>('');
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (settings.viewMode === 'live' && editingChunkIndex !== null) {
+        // If clicking outside the editor container
+        const target = event.target as HTMLElement;
+        if (!target.closest('.live-editor-container')) {
+          // In live mode, we commit on blur/click away
+          if (editingChunkIndex !== null) {
+             handleChunkUpdate(editingChunkIndex, tempChunkContent);
+          }
+          setEditingChunkIndex(null);
+        }
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [settings.viewMode, editingChunkIndex, tempChunkContent]);
 
   const chunks = useMemo(() => splitMarkdownIntoChunks(content), [content]);
 
   useEffect(() => {
     const handleResize = () => {
       const height = window.innerHeight;
-      setOverscan(Math.floor(height * 2));
+      // 10 pages ahead and behind as requested
+      setOverscan({ main: height * 10, reverse: height * 10 });
     };
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  const startEditing = (index: number, currentContent: string) => {
+    setEditingChunkIndex(index);
+    setTempChunkContent(currentContent);
+  };
 
   const handleChunkUpdate = (index: number, newChunkContent: string) => {
     const chunk = chunks[index];
@@ -58,8 +85,18 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ content, onChange }) =
     return content.replace(/^\$\$\n?/, '').replace(/\n?\$\$$/, '');
   };
 
+  const canEditChunk = (chunk: Chunk) => {
+    if (settings.viewMode === 'lightning') {
+      return true; // Mode 4: Editable every chunk precisely
+    }
+    if (settings.viewMode === 'live') {
+      return true; // Mode 5: Edit anything
+    }
+    return false;
+  };
+
   return (
-    <div className="h-full w-full bg-[var(--bg-primary)] overflow-hidden">
+    <div className="h-full w-full bg-[var(--bg-primary)] overflow-hidden" ref={containerRef}>
       <Virtuoso
         ref={virtuosoRef}
         data={chunks}
@@ -72,52 +109,61 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ content, onChange }) =
               editingChunkIndex === index ? "bg-[var(--bg-secondary)] shadow-inner" : "hover:bg-[var(--bg-secondary)]/30"
             )}
             onDoubleClick={() => {
-              if (chunk.type === 'math' || settings.viewMode === 'live') {
-                setEditingChunkIndex(index);
+              if (chunk.type === 'math' && settings.viewMode === 'live') {
+                startEditing(index, chunk.content);
+              } else if (canEditChunk(chunk)) {
+                startEditing(index, chunk.content);
               }
             }}
           >
             {editingChunkIndex === index ? (
-              <div className="py-4">
-                <div className="flex items-center justify-between mb-2 px-2">
-                  <div className="flex items-center space-x-2 text-xs font-medium text-[var(--accent-color)]">
-                    <Zap size={14} />
-                    <span className="uppercase tracking-wider">
-                      Editing {chunk.type === 'math' ? 'Equation' : chunk.type + ' block'}
-                    </span>
-                  </div>
-                  <button 
-                    onClick={() => setEditingChunkIndex(null)}
-                    className="text-xs bg-[var(--accent-color)] text-white px-3 py-1 rounded-md hover:opacity-90 shadow-sm transition-all"
-                  >
-                    Done
-                  </button>
-                </div>
+              <div className="py-2 live-editor-container">
                 <div className={clsx(
-                  "border-2 rounded-lg overflow-hidden bg-[var(--bg-primary)] shadow-lg transition-colors",
-                  chunk.type === 'math' ? "border-[var(--math-edit-border)]" : "border-[var(--accent-color)]"
+                  "overflow-hidden transition-all",
+                  settings.viewMode === 'live' ? "bg-transparent" : "border-2 rounded-lg bg-[var(--bg-primary)] shadow-lg",
+                  settings.viewMode === 'lightning' ? (chunk.type === 'math' ? "border-[var(--math-edit-border)]" : "border-[var(--accent-color)]") : "border-transparent"
                 )}>
                   <Editor
-                    content={chunk.type === 'math' ? getMathContent(chunk.content) : chunk.content}
-                    onChange={(val) => handleChunkUpdate(index, val)}
+                    content={chunk.type === 'math' ? getMathContent(tempChunkContent) : tempChunkContent}
+                    onChange={(val) => setTempChunkContent(val)}
                     autoCommentNextLine={settings.autoCommentNextLine}
                     syntaxHighlightRaw={true}
+                    minimal={settings.viewMode === 'live'}
+                    autoFocus={true}
                   />
                 </div>
-                <div className="mt-2 text-[10px] text-[var(--text-tertiary)] text-right italic">
-                  {chunk.type === 'math' ? 'Equation content only - $$ delimiters are added automatically' : 'Press Ctrl+S to save changes to file'}
-                </div>
+                {settings.viewMode === 'lightning' && (
+                  <div className="flex justify-between mt-1">
+                    <button 
+                      onClick={() => setEditingChunkIndex(null)}
+                      className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded hover:opacity-90 shadow-sm transition-all uppercase font-bold"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={() => {
+                        handleChunkUpdate(index, tempChunkContent);
+                        setEditingChunkIndex(null);
+                      }}
+                      className="text-[10px] bg-[var(--accent-color)] text-white px-2 py-0.5 rounded hover:opacity-90 shadow-sm transition-all uppercase font-bold"
+                    >
+                      Done
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="relative">
                 {/* Floating Edit Button for Chunks */}
-                <button 
-                  onClick={() => setEditingChunkIndex(index)}
-                  className="absolute -right-2 top-0 p-1.5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-md opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:text-[var(--accent-color)] z-10"
-                  title="Edit Block"
-                >
-                  <Edit3 size={14} />
-                </button>
+                {canEditChunk(chunk) && (
+                  <button 
+                    onClick={() => startEditing(index, chunk.content)}
+                    className="absolute -right-2 top-0 p-1.5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-md opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:text-[var(--accent-color)] z-10"
+                    title="Edit Block"
+                  >
+                    <Edit3 size={14} />
+                  </button>
+                )}
                 
                 <div className={clsx(
                   "markdown-body",

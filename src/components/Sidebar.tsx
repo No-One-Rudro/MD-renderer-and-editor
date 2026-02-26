@@ -99,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               onClick={() => fileInputRef.current?.click()}
               className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-md transition-colors"
-              title="Import File(s)"
+              title="Open File"
             >
               <Upload size={18} />
             </button>

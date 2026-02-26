@@ -7,6 +7,11 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
+* {
+  font-variant-ligatures: normal;
+  text-rendering: optimizeLegibility !important;
+}
+
 @layer base {
   :root {
     /* Default Light Theme */
@@ -84,21 +89,25 @@
     -moz-osx-font-smoothing: grayscale;
     background-color: var(--bg-primary);
     color: var(--text-primary);
+    text-rendering: optimizeLegibility;
+    font-variant-ligatures: normal;
   }
   
   body {
     background-color: var(--bg-primary);
     color: var(--text-primary);
+    overflow: hidden;
+    font-variant-ligatures: normal;
   }
 }
 @plugin "@tailwindcss/typography";
 
 /* 
   KaTeX Font Configuration
-  Ensure KaTeX respects our system font stack for text blocks inside math.
+  Allow KaTeX to use its default fonts for better math rendering.
 */
-.katex {
-  font-family: var(--font-sans) !important;
+/* .katex {
+  font-family: var(--font-sans);
 }
 
 .katex .text {
@@ -112,6 +121,14 @@
 
 .katex .mathrm {
   font-family: inherit !important;
+} */
+
+/* Horizontal scroll for math blocks */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 1rem 0;
+  custom-scrollbar: true;
 }
 
 /* Make sure the editor and preview scrollbars look nice */
@@ -131,4 +148,63 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.markdown-body {
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  color: var(--text-primary);
+  background: transparent !important;
+  text-rendering: optimizeLegibility;
+  font-variant-ligatures: normal;
+}
+
+.markdown-body pre {
+  background-color: var(--code-bg) !important;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.markdown-body code {
+  background-color: var(--code-bg) !important;
+  color: var(--code-text) !important;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+}
+
+.markdown-body blockquote {
+  border-left: 4px solid var(--accent-color);
+  background-color: var(--bg-secondary);
+  padding: 1rem;
+  border-radius: 0 8px 8px 0;
+}
+
+.markdown-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+  overflow-x: auto;
+  display: block;
+}
+
+.markdown-body mjx-container[display="true"] {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+}
+
+.markdown-body th, .markdown-body td {
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.markdown-body th {
+  background-color: var(--bg-secondary);
 }
