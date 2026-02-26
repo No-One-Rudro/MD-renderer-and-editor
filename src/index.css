@@ -3,7 +3,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600&family=Noto+Serif+Bengali:wght@400;600&display=swap');
 
 @theme {
-  --font-sans: "Inter", "Noto Sans Bengali", "Kalpurush", "Siyam Rupali", "SolaimanLipi", "Nirmala UI", "Vrinda", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-sans: "Inter", "Noto Sans Bengali", "Noto Sans Devanagari", "Kalpurush", "Siyam Rupali", "SolaimanLipi", "Nirmala UI", "Vrinda", "Mangal", "Lohit Devanagari", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
@@ -22,6 +22,8 @@
     --accent-text: #ffffff;
     --code-bg: #f4f4f5;
     --code-text: #db2777;
+    --math-edit-bg: #fef3c7;
+    --math-edit-border: #f59e0b;
   }
 
   /* ... (other themes remain same) ... */
@@ -38,6 +40,8 @@
     --accent-text: #ffffff;
     --code-bg: #27272a;
     --code-text: #f472b6;
+    --math-edit-bg: #451a03;
+    --math-edit-border: #d97706;
   }
 
   [data-theme="dracula"] {
@@ -53,6 +57,8 @@
     --accent-text: #282a36;
     --code-bg: #44475a;
     --code-text: #ff79c6;
+    --math-edit-bg: #441919;
+    --math-edit-border: #ff79c6;
   }
 
   [data-theme="sepia"] {
@@ -68,6 +74,8 @@
     --accent-text: #fdf6e3;
     --code-bg: #eee8d5;
     --code-text: #d33682;
+    --math-edit-bg: #fef3c7;
+    --math-edit-border: #b58900;
   }
 
   html {
@@ -94,6 +102,15 @@
 }
 
 .katex .text {
+  font-family: inherit !important;
+}
+
+.katex .mathit {
+  font-family: inherit !important;
+  font-style: italic;
+}
+
+.katex .mathrm {
   font-family: inherit !important;
 }
 

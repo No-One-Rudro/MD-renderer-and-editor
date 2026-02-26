@@ -8,6 +8,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { FindReplace } from './components/FindReplace';
 import { TopBar } from './components/Toolbar/TopBar';
 import { Note, loadNotes, saveNotes, createNote, loadTheme } from './store';
+import { format } from 'date-fns';
 import { useSettings } from './context/SettingsContext';
 import clsx from 'clsx';
 import welcomeNote from './assets/welcome-note.md?raw';
@@ -21,35 +22,21 @@ export default function App() {
   const [scrollToLine, setScrollToLine] = useState<number | null>(null);
   const [debouncedContent, setDebouncedContent] = useState<string>('');
   
-  const { settings } = useSettings();
-
-  // ... (rest of the component)
-
-  const handlePreviewClick = (line: number) => {
-    setScrollToLine(line);
-    // Reset after a short delay so we can scroll to the same line again if needed
-    // or just let the Editor handle the change. 
-    // Actually, if we click the same line twice, the effect won't trigger. 
-    // But scrolling usually changes the view, so clicking again implies we moved away.
-    // To be safe, we can reset it, but that might cause a loop if we are not careful.
-    // Let's just set it. If the user scrolls manually, the Editor component doesn't "unset" this prop,
-    // but the prop only triggers on change.
-    // To allow re-triggering, we can use a timestamp or object, but simple number is fine for now.
-  };
-
-  // ... (rest of the component)
-  
-  // New state for menu and features
-  const [showFindReplace, setShowFindReplace] = useState(false);
-  const [wordCount, setWordCount] = useState<{words: number, chars: number} | null>(null);
-
   // Initialize theme
   useEffect(() => {
     const savedTheme = loadTheme();
     document.documentElement.setAttribute('data-theme', savedTheme);
   }, []);
 
-  // ... (inside App component)
+  const { settings, updateSettings } = useSettings();
+
+  const handlePreviewClick = (line: number) => {
+    setScrollToLine(line);
+  };
+
+  // New state for menu and features
+  const [showFindReplace, setShowFindReplace] = useState(false);
+  const [wordCount, setWordCount] = useState<{words: number, chars: number} | null>(null);
 
   useEffect(() => {
     const loadedNotes = loadNotes();
@@ -197,6 +184,27 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
+  const handleCreateDailyNote = () => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const existingDaily = notes.find(n => n.title === today);
+    
+    if (existingDaily) {
+      setActiveNoteId(existingDaily.id);
+    } else {
+      const newNote: Note = {
+        id: Date.now().toString(),
+        title: today,
+        content: `# Daily Note: ${today}\n\n## Tasks\n- [ ] \n\n## Notes\n`,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      const updatedNotes = [newNote, ...notes];
+      setNotes(updatedNotes);
+      saveNotes(updatedNotes);
+      setActiveNoteId(newNote.id);
+    }
+  };
+
   const handleUpdateContent = (content: string) => {
     if (!activeNoteId) return;
     
@@ -213,8 +221,100 @@ export default function App() {
     );
   };
 
+  // Command Palette state
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState('');
+
+  // Global shortcuts
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+K or Ctrl+P for Command Palette
+      if ((e.ctrlKey && e.key === 'k') || (e.ctrlKey && e.key === 'p')) {
+        e.preventDefault();
+        setIsCommandPaletteOpen(true);
+      }
+      
+      // Ctrl+X Ctrl+S (Emacs save)
+      if (e.ctrlKey && e.key === 'x') {
+        const handleSave = (se: KeyboardEvent) => {
+          if (se.key === 's') {
+            se.preventDefault();
+            // Show a temporary "Saved" indicator or toast
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-4 right-4 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg z-[100] animate-bounce';
+            toast.innerText = 'Note Saved (Auto-save is active)';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+            window.removeEventListener('keydown', handleSave);
+          }
+        };
+        window.addEventListener('keydown', handleSave);
+        setTimeout(() => window.removeEventListener('keydown', handleSave), 1000);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
+  const commands = [
+    { name: 'Switch to Raw Mode', action: () => updateSettings({ viewMode: 'raw' }) },
+    { name: 'Switch to Split Mode', action: () => updateSettings({ viewMode: 'split' }) },
+    { name: 'Switch to Preview Mode', action: () => updateSettings({ viewMode: 'preview' }) },
+    { name: 'Switch to Live Mode', action: () => updateSettings({ viewMode: 'live' }) },
+    { name: 'Create New Note', action: handleCreateNote },
+    { name: 'Create Daily Note', action: handleCreateDailyNote },
+    { name: 'Open Settings', action: () => setIsSettingsOpen(true) },
+    { name: 'Toggle Find & Replace', action: () => setShowFindReplace(!showFindReplace) },
+    ...notes.map(note => ({ name: `Open Note: ${note.title}`, action: () => setActiveNoteId(note.id) }))
+  ];
+
+  const filteredCommands = commands.filter(c => c.name.toLowerCase().includes(commandQuery.toLowerCase()));
+
   return (
     <div className="flex h-screen w-full bg-[var(--bg-secondary)] overflow-hidden font-sans text-[var(--text-primary)] transition-colors duration-200">
+      {/* Command Palette */}
+      {isCommandPaletteOpen && (
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] bg-black/40 backdrop-blur-sm" onClick={() => setIsCommandPaletteOpen(false)}>
+          <div className="bg-[var(--bg-primary)] w-full max-w-xl rounded-xl shadow-2xl border border-[var(--border-color)] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b border-[var(--border-color)]">
+              <input 
+                autoFocus
+                type="text" 
+                placeholder="Type a command or note name..."
+                className="w-full bg-transparent text-lg focus:outline-none"
+                value={commandQuery}
+                onChange={e => setCommandQuery(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Escape') setIsCommandPaletteOpen(false);
+                  if (e.key === 'Enter' && filteredCommands.length > 0) {
+                    filteredCommands[0].action();
+                    setIsCommandPaletteOpen(false);
+                    setCommandQuery('');
+                  }
+                }}
+              />
+            </div>
+            <div className="max-h-[40vh] overflow-y-auto p-2">
+              {filteredCommands.map((cmd, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    cmd.action();
+                    setIsCommandPaletteOpen(false);
+                    setCommandQuery('');
+                  }}
+                  className="w-full text-left px-4 py-3 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors flex items-center justify-between group"
+                >
+                  <span>{cmd.name}</span>
+                  <span className="text-xs text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100">Enter to run</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
@@ -237,6 +337,7 @@ export default function App() {
           onRenameNote={handleRenameNote}
           onImportFile={handleImportFile}
           onDownloadNote={handleDownloadNote}
+          onCreateDailyNote={handleCreateDailyNote}
         />
       </div>
       

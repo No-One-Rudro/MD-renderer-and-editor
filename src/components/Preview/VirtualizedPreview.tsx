@@ -45,13 +45,23 @@ export const VirtualizedPreview: React.FC<VirtualizedPreviewProps> = ({ content,
           align: 'start',
           behavior: 'auto',
         });
-      } else if (topLine >= chunks[chunks.length - 1].endLine) {
-        // Scroll to end if topLine is beyond last chunk
-        virtuosoRef.current.scrollToIndex({
-          index: chunks.length - 1,
-          align: 'end',
-          behavior: 'auto',
-        });
+      } else {
+        // Find the closest chunk before the topLine
+        let closestIndex = -1;
+        for (let i = chunks.length - 1; i >= 0; i--) {
+          if (chunks[i].endLine < topLine) {
+            closestIndex = i;
+            break;
+          }
+        }
+        
+        if (closestIndex !== -1) {
+          virtuosoRef.current.scrollToIndex({
+            index: closestIndex,
+            align: 'end',
+            behavior: 'auto'
+          });
+        }
       }
     }
   }, [topLine, chunks]);
@@ -63,7 +73,7 @@ export const VirtualizedPreview: React.FC<VirtualizedPreviewProps> = ({ content,
     )}
     style={{
       // Ensure these fonts are available for the renderer
-      fontFamily: "'Inter', 'Noto Sans Bengali', 'Noto Serif Bengali', 'Kalpurush', 'Siyam Rupali', 'SolaimanLipi', 'Nirmala UI', 'Vrinda', sans-serif"
+      fontFamily: "var(--font-sans)"
     }}
     >
       <Virtuoso

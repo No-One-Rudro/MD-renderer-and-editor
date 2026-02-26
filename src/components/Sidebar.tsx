@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Note } from '../store';
 import { format } from 'date-fns';
-import { FileText, Plus, Trash2, MoreVertical, Download, Edit2, Upload, FileDown, FolderInput } from 'lucide-react';
+import { FileText, Plus, Trash2, MoreVertical, Download, Edit2, Upload, FileDown, FolderInput, Search, Calendar } from 'lucide-react';
 
 interface SidebarProps {
   notes: Note[];
@@ -12,6 +12,7 @@ interface SidebarProps {
   onRenameNote: (id: string, newTitle: string) => void;
   onImportFile: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onDownloadNote: (note: Note) => void;
+  onCreateDailyNote: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -23,8 +24,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onRenameNote,
   onImportFile,
   onDownloadNote,
+  onCreateDailyNote,
 }) => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -48,59 +51,85 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setOpenMenuId(null);
   };
 
+  const filteredNotes = notes.filter(note => 
+    note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    note.content.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="w-64 bg-[var(--bg-secondary)] border-r border-[var(--border-color)] flex flex-col h-full overflow-hidden transition-colors duration-200">
-      <div className="p-4 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg-primary)] transition-colors duration-200">
-        <h2 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Notes</h2>
-        <div className="flex items-center space-x-1">
-          <input
-            type="file"
-            accept=".md,.txt"
-            ref={fileInputRef}
-            onChange={onImportFile}
-            className="hidden"
-            multiple
+      <div className="p-4 border-b border-[var(--border-color)] bg-[var(--bg-primary)] transition-colors duration-200">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Notes</h2>
+          <div className="flex items-center space-x-1">
+            <input
+              type="file"
+              accept=".md,.txt,.tex"
+              ref={fileInputRef}
+              onChange={onImportFile}
+              className="hidden"
+              multiple
+            />
+            <input
+              type="file"
+              // @ts-ignore
+              webkitdirectory=""
+              directory=""
+              ref={folderInputRef}
+              onChange={onImportFile}
+              className="hidden"
+              multiple
+            />
+            <button
+              onClick={onCreateDailyNote}
+              className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--accent-color)] hover:bg-[var(--bg-secondary)] rounded-md transition-colors"
+              title="Daily Note"
+            >
+              <Calendar size={18} />
+            </button>
+            <button
+              onClick={() => folderInputRef.current?.click()}
+              className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-md transition-colors"
+              title="Import Folder"
+            >
+              <FolderInput size={18} />
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-md transition-colors"
+              title="Import File(s)"
+            >
+              <Upload size={18} />
+            </button>
+            <button
+              onClick={onCreateNote}
+              className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-md transition-colors"
+              title="New Note"
+            >
+              <Plus size={18} />
+            </button>
+          </div>
+        </div>
+        
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
+          <input 
+            type="text"
+            placeholder="Search notes..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-md focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] transition-all"
           />
-          <input
-            type="file"
-            // @ts-ignore
-            webkitdirectory=""
-            directory=""
-            ref={folderInputRef}
-            onChange={onImportFile}
-            className="hidden"
-            multiple
-          />
-          <button
-            onClick={() => folderInputRef.current?.click()}
-            className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-md transition-colors"
-            title="Import Folder"
-          >
-            <FolderInput size={18} />
-          </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-md transition-colors"
-            title="Import File(s)"
-          >
-            <Upload size={18} />
-          </button>
-          <button
-            onClick={onCreateNote}
-            className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-md transition-colors"
-            title="New Note"
-          >
-            <Plus size={18} />
-          </button>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto p-2 space-y-1">
-        {notes.length === 0 ? (
+
+      <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+        {filteredNotes.length === 0 ? (
           <div className="text-center p-4 text-sm text-[var(--text-tertiary)]">
-            No notes yet. Create or import one to get started!
+            {searchQuery ? 'No matching notes found.' : 'No notes yet. Create or import one to get started!'}
           </div>
         ) : (
-          notes.map((note) => (
+          filteredNotes.map((note) => (
             <div
               key={note.id}
               onClick={() => onSelectNote(note.id)}
