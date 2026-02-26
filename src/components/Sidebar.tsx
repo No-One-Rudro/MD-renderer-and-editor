@@ -6,6 +6,7 @@ import { FileText, Plus, Trash2, MoreVertical, Download, Edit2, Upload, FileDown
 interface SidebarProps {
   notes: Note[];
   activeNoteId: string | null;
+  unsavedNotes: Set<string>;
   onSelectNote: (id: string) => void;
   onCreateNote: () => void;
   onDeleteNote: (id: string) => void;
@@ -18,6 +19,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   notes,
   activeNoteId,
+  unsavedNotes,
   onSelectNote,
   onCreateNote,
   onDeleteNote,
@@ -142,7 +144,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="flex items-center space-x-3 overflow-hidden pr-6">
                 <FileText size={16} className={activeNoteId === note.id ? 'text-[var(--accent-color)] shrink-0' : 'text-[var(--text-tertiary)] shrink-0'} />
                 <div className="overflow-hidden">
-                  <p className="text-sm font-medium truncate">{note.title || 'Untitled Note'}</p>
+                  <p className="text-sm font-medium truncate">
+                    {note.title || 'Untitled Note'}
+                    {unsavedNotes.has(note.id) && <span className="text-[var(--accent-color)] ml-1">*</span>}
+                  </p>
                   <p className="text-xs text-[var(--text-tertiary)] truncate">
                     {format(note.updatedAt, 'MMM d, yyyy h:mm a')}
                   </p>

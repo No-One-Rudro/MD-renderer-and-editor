@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MoreVertical, Settings, Check, X, FileText, Type, Code, Eye, EyeOff, Menu, Edit3, SplitSquareHorizontal, Search, File, Zap } from 'lucide-react';
+import { MoreVertical, Settings, Check, X, FileText, Type, Code, Eye, EyeOff, Menu, Edit3, SplitSquareHorizontal, Search, File, Zap, Save } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import clsx from 'clsx';
 
 interface TopBarProps {
   title: string;
+  isUnsaved?: boolean;
+  onSave?: () => void;
   onCountWords: () => void;
   wordCountResult: { words: number, chars: number } | null;
   onOpenSettings: () => void;
@@ -14,6 +16,8 @@ interface TopBarProps {
 
 export const TopBar: React.FC<TopBarProps> = ({ 
   title, 
+  isUnsaved = false,
+  onSave,
   onCountWords, 
   wordCountResult, 
   onOpenSettings, 
@@ -51,8 +55,9 @@ export const TopBar: React.FC<TopBarProps> = ({
         >
           <Menu size={20} />
         </button>
-        <h1 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] truncate max-w-[150px] sm:max-w-xs">
+        <h1 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] truncate max-w-[150px] sm:max-w-xs flex items-center">
           {title}
+          {isUnsaved && <span className="text-[var(--accent-color)] ml-1 text-xl leading-none">*</span>}
         </h1>
         {(settings.liveWordCount || wordCountResult) && (
           <div className="hidden sm:flex items-center text-xs text-[var(--text-tertiary)] ml-2 bg-[var(--bg-secondary)] px-2 py-1 rounded">
@@ -63,6 +68,20 @@ export const TopBar: React.FC<TopBarProps> = ({
       </div>
 
       <div className="flex items-center space-x-2 relative">
+        {onSave && (
+          <button
+            onClick={onSave}
+            className={clsx(
+              "p-2 rounded-lg transition-colors flex items-center justify-center",
+              isUnsaved 
+                ? "bg-[var(--accent-color)] text-white hover:opacity-90 shadow-sm" 
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+            )}
+            title="Save Note (Ctrl+S)"
+          >
+            <Save size={18} />
+          </button>
+        )}
         <div className="flex items-center space-x-1 bg-[var(--bg-secondary)] p-1 rounded-lg border border-[var(--border-color)] overflow-x-auto max-w-[200px] sm:max-w-none no-scrollbar">
           <button
             onClick={() => updateSettings({ viewMode: 'raw' })}

@@ -22,21 +22,39 @@ export default function App() {
   const [scrollToLine, setScrollToLine] = useState<number | null>(null);
   const [debouncedContent, setDebouncedContent] = useState<string>('');
   
+  // Force raw mode on startup
+  const { settings, updateSettings } = useSettings();
+  useEffect(() => {
+    updateSettings({ viewMode: 'raw' });
+  }, []);
+
+  // ... (rest of the component)
+
+  const handlePreviewClick = (line: number) => {
+    setScrollToLine(line);
+    // Reset after a short delay so we can scroll to the same line again if needed
+    // or just let the Editor handle the change. 
+    // Actually, if we click the same line twice, the effect won't trigger. 
+    // But scrolling usually changes the view, so clicking again implies we moved away.
+    // To be safe, we can reset it, but that might cause a loop if we are not careful.
+    // Let's just set it. If the user scrolls manually, the Editor component doesn't "unset" this prop,
+    // but the prop only triggers on change.
+    // To allow re-triggering, we can use a timestamp or object, but simple number is fine for now.
+  };
+
+  // ... (rest of the component)
+  
+  // New state for menu and features
+  const [showFindReplace, setShowFindReplace] = useState(false);
+  const [wordCount, setWordCount] = useState<{words: number, chars: number} | null>(null);
+
   // Initialize theme
   useEffect(() => {
     const savedTheme = loadTheme();
     document.documentElement.setAttribute('data-theme', savedTheme);
   }, []);
 
-  const { settings, updateSettings } = useSettings();
-
-  const handlePreviewClick = (line: number) => {
-    setScrollToLine(line);
-  };
-
-  // New state for menu and features
-  const [showFindReplace, setShowFindReplace] = useState(false);
-  const [wordCount, setWordCount] = useState<{words: number, chars: number} | null>(null);
+  // ... (inside App component)
 
   useEffect(() => {
     const loadedNotes = loadNotes();
@@ -51,12 +69,6 @@ export default function App() {
       setActiveNoteId(newNote.id);
     }
   }, []);
-
-  useEffect(() => {
-    if (notes.length > 0) {
-      saveNotes(notes);
-    }
-  }, [notes]);
 
   const activeNote = notes.find((n) => n.id === activeNoteId) || null;
 
@@ -103,7 +115,9 @@ export default function App() {
 
   const handleCreateNote = () => {
     const newNote = createNote();
-    setNotes([newNote, ...notes]);
+    const updatedNotes = [newNote, ...notes];
+    setNotes(updatedNotes);
+    saveNotes(updatedNotes);
     setActiveNoteId(newNote.id);
     setIsSidebarOpen(false);
   };
@@ -111,17 +125,18 @@ export default function App() {
   const handleDeleteNote = (id: string) => {
     const updatedNotes = notes.filter((n) => n.id !== id);
     setNotes(updatedNotes);
+    saveNotes(updatedNotes);
     if (activeNoteId === id) {
       setActiveNoteId(updatedNotes.length > 0 ? updatedNotes[0].id : null);
     }
   };
 
   const handleRenameNote = (id: string, newTitle: string) => {
-    setNotes((prev) =>
-      prev.map((note) =>
-        note.id === id ? { ...note, title: newTitle, updatedAt: Date.now() } : note
-      )
+    const updatedNotes = notes.map((note) =>
+      note.id === id ? { ...note, title: newTitle, updatedAt: Date.now() } : note
     );
+    setNotes(updatedNotes);
+    saveNotes(updatedNotes);
   };
 
   const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -155,7 +170,11 @@ export default function App() {
         newNote.content = content;
 
         // Update state incrementally
-        setNotes((prev) => [newNote, ...prev]);
+        setNotes((prev) => {
+          const updated = [newNote, ...prev];
+          saveNotes(updated);
+          return updated;
+        });
         
         // If it's the first file imported, set it as active
         if (i === 0) {
@@ -219,11 +238,24 @@ export default function App() {
           : note
       )
     );
+    
+    setUnsavedNotes(prev => new Set(prev).add(activeNoteId));
   };
 
-  // Command Palette state
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState('');
+  const [unsavedNotes, setUnsavedNotes] = useState<Set<string>>(new Set());
+
+  const handleSave = () => {
+    saveNotes(notes);
+    setUnsavedNotes(new Set());
+    
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-4 right-4 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg z-[100] animate-bounce';
+    toast.innerText = 'Note Saved Successfully';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+  };
 
   // Global shortcuts
   useEffect(() => {
@@ -234,28 +266,28 @@ export default function App() {
         setIsCommandPaletteOpen(true);
       }
       
-      // Ctrl+X Ctrl+S (Emacs save)
+      // Ctrl+S or Ctrl+X Ctrl+S (Emacs save)
+      if ((e.ctrlKey && e.key === 's')) {
+        e.preventDefault();
+        handleSave();
+      }
+      
       if (e.ctrlKey && e.key === 'x') {
-        const handleSave = (se: KeyboardEvent) => {
+        const handleEmacsSave = (se: KeyboardEvent) => {
           if (se.key === 's') {
             se.preventDefault();
-            // Show a temporary "Saved" indicator or toast
-            const toast = document.createElement('div');
-            toast.className = 'fixed bottom-4 right-4 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg z-[100] animate-bounce';
-            toast.innerText = 'Note Saved (Auto-save is active)';
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 2000);
-            window.removeEventListener('keydown', handleSave);
+            handleSave();
+            window.removeEventListener('keydown', handleEmacsSave);
           }
         };
-        window.addEventListener('keydown', handleSave);
-        setTimeout(() => window.removeEventListener('keydown', handleSave), 1000);
+        window.addEventListener('keydown', handleEmacsSave);
+        setTimeout(() => window.removeEventListener('keydown', handleEmacsSave), 1000);
       }
     };
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, []);
+  }, [notes]); // Re-bind when notes change so handleSave uses latest notes
 
   const commands = [
     { name: 'Switch to Raw Mode', action: () => updateSettings({ viewMode: 'raw' }) },
@@ -328,6 +360,7 @@ export default function App() {
         <Sidebar
           notes={notes}
           activeNoteId={activeNoteId}
+          unsavedNotes={unsavedNotes}
           onSelectNote={(id) => {
             setActiveNoteId(id);
             setIsSidebarOpen(false);
@@ -344,6 +377,8 @@ export default function App() {
       <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
         <TopBar 
           title={activeNote?.title || 'Markdown & LaTeX Studio'}
+          isUnsaved={activeNoteId ? unsavedNotes.has(activeNoteId) : false}
+          onSave={handleSave}
           onCountWords={handleManualWordCount}
           wordCountResult={wordCount}
           onOpenSettings={() => setIsSettingsOpen(true)}
@@ -400,10 +435,10 @@ export default function App() {
                 </>
               )}
 
-              {/* Mode 3: Simple Preview - Buffered Full Preview */}
+              {/* Mode 3: Preview - Virtualized (RAM optimized) */}
               {settings.viewMode === 'preview' && (
                 <div className="w-full h-full bg-[var(--bg-secondary)]">
-                  <BufferedPreview content={debouncedContent} />
+                  <VirtualizedPreview content={debouncedContent} />
                 </div>
               )}
 

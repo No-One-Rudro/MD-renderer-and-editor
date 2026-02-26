@@ -105,7 +105,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ content, onChange }) =
                   />
                 </div>
                 <div className="mt-2 text-[10px] text-[var(--text-tertiary)] text-right italic">
-                  {chunk.type === 'math' ? 'Equation content only - $$ delimiters are added automatically' : 'Changes are saved automatically'}
+                  {chunk.type === 'math' ? 'Equation content only - $$ delimiters are added automatically' : 'Press Ctrl+S to save changes to file'}
                 </div>
               </div>
             ) : (
