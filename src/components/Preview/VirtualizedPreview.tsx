@@ -8,23 +8,25 @@ import clsx from 'clsx';
 interface VirtualizedPreviewProps {
   content: string;
   topLine?: number;
+  percentage?: number;
   onChunkClick?: (line: number) => void;
-  onScroll?: (topLine: number) => void;
+  onScroll?: (info: { percentage: number, topLine: number }) => void;
 }
 
-export const VirtualizedPreview: React.FC<VirtualizedPreviewProps> = ({ content, topLine, onChunkClick, onScroll }) => {
+export const VirtualizedPreview: React.FC<VirtualizedPreviewProps> = ({ content, topLine, percentage, onChunkClick, onScroll }) => {
   const { settings } = useSettings();
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const [overscan, setOverscan] = useState<{ main: number, reverse: number }>({ main: 2000, reverse: 2000 });
 
   const currentStartIndexRef = useRef<number>(0);
+  const isProgrammaticScroll = useRef(false);
 
   // Calculate dynamic overscan based on window height
   useEffect(() => {
     const handleResize = () => {
       const height = window.innerHeight;
-      // 5 pages ahead and behind (total 10 pages buffer) to save RAM while keeping smooth scroll
-      setOverscan({ main: height * 5, reverse: height * 5 });
+      // 25 pages ahead and behind (total 50+ pages buffer) to save RAM while keeping smooth scroll
+      setOverscan({ main: height * 25, reverse: height * 25 });
     };
 
     handleResize(); // Initial
@@ -34,43 +36,41 @@ export const VirtualizedPreview: React.FC<VirtualizedPreviewProps> = ({ content,
   
   const chunks = useMemo(() => splitMarkdownIntoChunks(content), [content]);
 
-  // Handle scroll sync based on topLine
+  // Handle scroll sync based on percentage (smoother) or topLine (precise)
   useEffect(() => {
-    if (topLine !== undefined && virtuosoRef.current && chunks.length > 0) {
-      // Find the chunk that contains the topLine
-      const targetChunkIndex = chunks.findIndex(chunk => chunk.startLine <= topLine && chunk.endLine >= topLine);
+    if (virtuosoRef.current && chunks.length > 0) {
+      isProgrammaticScroll.current = true;
       
-      if (targetChunkIndex !== -1) {
-        // Only scroll if we are far away (e.g. > 1 chunk away) to prevent loop
-        if (Math.abs(targetChunkIndex - currentStartIndexRef.current) > 1) {
-          virtuosoRef.current.scrollToIndex({
-            index: targetChunkIndex,
-            align: 'start',
-            behavior: 'auto',
-          });
-        }
-      } else {
-        // Find the closest chunk before the topLine
-        let closestIndex = -1;
-        for (let i = chunks.length - 1; i >= 0; i--) {
-          if (chunks[i].endLine < topLine) {
-            closestIndex = i;
-            break;
-          }
-        }
-        
-        if (closestIndex !== -1) {
-           if (Math.abs(closestIndex - currentStartIndexRef.current) > 1) {
+      if (percentage !== undefined) {
+         // Scroll by percentage for smoother sync across wrapped lines
+         const targetIndex = Math.floor(percentage * (chunks.length - 1));
+         if (Math.abs(targetIndex - currentStartIndexRef.current) > 0) {
             virtuosoRef.current.scrollToIndex({
-              index: closestIndex,
-              align: 'end',
-              behavior: 'auto'
+              index: targetIndex,
+              align: 'start',
+              behavior: 'auto',
+            });
+         }
+      } else if (topLine !== undefined) {
+        // Find the chunk that contains the topLine
+        const targetChunkIndex = chunks.findIndex(chunk => chunk.startLine <= topLine && chunk.endLine >= topLine);
+        
+        if (targetChunkIndex !== -1) {
+          if (Math.abs(targetChunkIndex - currentStartIndexRef.current) > 0) {
+             virtuosoRef.current.scrollToIndex({
+              index: targetChunkIndex,
+              align: 'start',
+              behavior: 'auto',
             });
           }
         }
       }
+      
+      window.setTimeout(() => {
+        isProgrammaticScroll.current = false;
+      }, 100);
     }
-  }, [topLine, chunks]);
+  }, [topLine, percentage, chunks]);
 
   return (
     <div className={clsx(
@@ -87,25 +87,26 @@ export const VirtualizedPreview: React.FC<VirtualizedPreviewProps> = ({ content,
         data={chunks}
         overscan={overscan}
         onScroll={(e) => {
-          if (onScroll && virtuosoRef.current) {
-             // This is a rough estimation. Virtuoso doesn't give us the exact item index easily on scroll event alone
-             // We might need rangeChanged or similar, but let's try to infer from scrollTop if needed
-             // Actually, rangeChanged is better
+          if (onScroll && !isProgrammaticScroll.current) {
+             const target = e.target as HTMLElement;
+             const { scrollTop, scrollHeight, clientHeight } = target;
+             const maxScroll = scrollHeight - clientHeight;
+             const scrollPercentage = maxScroll > 0 ? scrollTop / maxScroll : 0;
+             
+             // Estimate top line based on currentStartIndex
+             const currentChunk = chunks[currentStartIndexRef.current];
+             const estimatedTopLine = currentChunk ? currentChunk.startLine : 0;
+             
+             onScroll({ percentage: scrollPercentage, topLine: estimatedTopLine });
           }
         }}
         rangeChanged={(range) => {
            currentStartIndexRef.current = range.startIndex;
-           if (onScroll && chunks.length > 0) {
-             const firstVisibleIndex = range.startIndex;
-             if (chunks[firstVisibleIndex]) {
-               onScroll(chunks[firstVisibleIndex].startLine);
-             }
-           }
         }}
         itemContent={(index, chunk) => (
           <div 
             className="px-4 md:px-8 py-1 markdown-body cursor-pointer hover:bg-black/5 transition-colors duration-200 rounded-sm"
-            onClick={() => onChunkClick?.(chunk.startLine)}
+            onDoubleClick={() => onChunkClick?.(chunk.startLine)}
           >
             <MarkdownRenderer 
               content={chunk.content} 

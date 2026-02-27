@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Editor } from './components/Editor';
 import { VirtualizedPreview } from './components/Preview/VirtualizedPreview';
@@ -11,6 +11,11 @@ import { loadTheme } from './store';
 import { useSettings } from './context/SettingsContext';
 import { useNotes } from './hooks/useNotes';
 import { CommandPalette } from './components/CommandPalette';
+import { Toast } from './components/Toast';
+import { WordCountModal } from './components/WordCountModal';
+
+// Memoize Editor to prevent unnecessary re-renders
+const MemoizedEditor = React.memo(Editor);
 
 export default function App() {
   const {
@@ -31,12 +36,21 @@ export default function App() {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isWordCountModalOpen, setIsWordCountModalOpen] = useState(false);
   const [scrollInfo, setScrollInfo] = useState<{ percentage: number, topLine: number }>({ percentage: 0, topLine: 0 });
   const [scrollToLine, setScrollToLine] = useState<number | null>(null);
+  const [scrollPercentage, setScrollPercentage] = useState<number | null>(null);
   const [debouncedContent, setDebouncedContent] = useState<string>('');
+  const [toastMessage, setToastMessage] = useState<string>('');
+  const [isToastVisible, setIsToastVisible] = useState(false);
   
   const { settings, updateSettings } = useSettings();
   
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setIsToastVisible(true);
+  };
+
   // Ensure we default to raw mode at startup
   useEffect(() => {
     if (settings.viewMode !== 'raw') {
@@ -47,49 +61,65 @@ export default function App() {
   // Immediate sync when syncScroll is toggled on
   useEffect(() => {
     if (settings.syncScroll && settings.viewMode === 'split') {
-      // We don't need to do much as the next render will use the current scrollInfo
-      // but we can force a small state update if needed.
+      showToast("Sync Scroll: ON");
+    } else if (!settings.syncScroll && settings.viewMode === 'split') {
+      showToast("Sync Scroll: OFF");
     }
   }, [settings.syncScroll]);
 
-  const handlePreviewClick = (line: number) => {
+  const handlePreviewClick = useCallback((line: number) => {
     // Manual click-to-sync always works
     setScrollToLine(line);
-  };
+    setScrollPercentage(null);
+  }, []);
 
-  const [editorScrollTop, setEditorScrollTop] = useState(0);
-  const [previewScrollTop, setPreviewScrollTop] = useState(0);
+  const activeScrollPane = useRef<'editor' | 'preview' | null>(null);
+  const scrollTimeoutRef = useRef<number | null>(null);
 
-  const handleEditorScroll = (info: { percentage: number, topLine: number }) => {
-    // Auto-sync only if enabled
-    if (settings.syncScroll) {
+  const handleEditorScroll = useCallback((info: { percentage: number, topLine: number }) => {
+    if (settings.syncScroll && activeScrollPane.current !== 'preview') {
+      activeScrollPane.current = 'editor';
       setScrollInfo(info);
+      
+      if (scrollTimeoutRef.current !== null) window.clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = window.setTimeout(() => {
+        activeScrollPane.current = null;
+      }, 150);
     }
-  };
+  }, [settings.syncScroll]);
 
-  const handlePreviewScroll = (topLine: number) => {
-    if (settings.syncScroll) {
-       setScrollToLine(topLine);
+  const handlePreviewScroll = useCallback((info: { percentage: number, topLine: number }) => {
+    if (settings.syncScroll && activeScrollPane.current !== 'editor') {
+      activeScrollPane.current = 'preview';
+      setScrollToLine(info.topLine);
+      setScrollPercentage(info.percentage);
+      
+      if (scrollTimeoutRef.current !== null) window.clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = window.setTimeout(() => {
+        activeScrollPane.current = null;
+      }, 150);
     }
-  }
+  }, [settings.syncScroll]);
 
-  const handleEditorClick = (line: number) => {
+  const handleEditorClick = useCallback((line: number) => {
     // Manual click-to-sync always works
     setScrollInfo({ percentage: 0, topLine: line });
-  };
+  }, []);
 
   const [showFindReplace, setShowFindReplace] = useState(false);
-  const [wordCount, setWordCount] = useState<{words: number, chars: number} | null>(null);
+  const [wordCount, setWordCount] = useState<{words: number, chars: number, charsNoSpaces: number, lines: number} | null>(null);
 
   const calculateWordCount = (text: string) => {
     if (!text) {
-      setWordCount({ words: 0, chars: 0 });
+      setWordCount({ words: 0, chars: 0, charsNoSpaces: 0, lines: 0 });
       return;
     }
     // Better word count for complex scripts
     const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
     const chars = text.length;
-    setWordCount({ words, chars });
+    const charsNoSpaces = text.replace(/\s/g, '').length;
+    const lines = text.split('\n').length;
+    setWordCount({ words, chars, charsNoSpaces, lines });
   };
 
   useEffect(() => {
@@ -99,10 +129,10 @@ export default function App() {
 
   useEffect(() => {
     if (!activeNote) return;
-    const timer = setTimeout(() => {
+    const timer = window.setTimeout(() => {
       setDebouncedContent(activeNote.content);
     }, 300);
-    return () => clearTimeout(timer);
+    return () => window.clearTimeout(timer);
   }, [activeNote?.content]);
 
   useEffect(() => {
@@ -121,10 +151,8 @@ export default function App() {
 
   const handleManualWordCount = () => {
     if (activeNote) {
-      const text = activeNote.content;
-      const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
-      const chars = text.length;
-      alert(`Word Count: ${words}\nCharacter Count: ${chars}`);
+      calculateWordCount(activeNote.content);
+      setIsWordCountModalOpen(true);
     }
   };
 
@@ -140,6 +168,7 @@ export default function App() {
       if ((e.ctrlKey && e.key === 's')) {
         e.preventDefault();
         handleSave();
+        showToast("Note Saved");
       }
       
       if (e.ctrlKey && e.key === 'x') {
@@ -147,11 +176,12 @@ export default function App() {
           if (se.key === 's') {
             se.preventDefault();
             handleSave();
+            showToast("Note Saved");
             window.removeEventListener('keydown', handleEmacsSave);
           }
         };
         window.addEventListener('keydown', handleEmacsSave);
-        setTimeout(() => window.removeEventListener('keydown', handleEmacsSave), 1000);
+        window.setTimeout(() => window.removeEventListener('keydown', handleEmacsSave), 1000);
       }
     };
 
@@ -173,6 +203,13 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-full bg-[var(--bg-secondary)] overflow-hidden font-sans text-[var(--text-primary)] transition-colors duration-200">
+      <div style={{ position: 'fixed', top: 0, left: 0, background: 'red', color: 'white', zIndex: 10000 }}>DEBUG: App Rendering</div>
+      <Toast 
+        message={toastMessage}
+        isVisible={isToastVisible}
+        onClose={() => setIsToastVisible(false)}
+      />
+      
       <CommandPalette 
         isOpen={isCommandPaletteOpen} 
         onClose={() => setIsCommandPaletteOpen(false)} 
@@ -208,7 +245,7 @@ export default function App() {
         <TopBar 
           title={activeNote?.title || 'Crystal Render'}
           isUnsaved={activeNoteId ? unsavedNotes.has(activeNoteId) : false}
-          onSave={handleSave}
+          onSave={() => { handleSave(); showToast("Note Saved"); }}
           onCountWords={handleManualWordCount}
           wordCountResult={wordCount}
           onOpenSettings={() => setIsSettingsOpen(true)}
@@ -229,7 +266,8 @@ export default function App() {
             <>
               {settings.viewMode === 'raw' && (
                 <div className="w-full h-full">
-                  <Editor 
+                  <MemoizedEditor 
+                    key={activeNote.id}
                     content={activeNote.content} 
                     onChange={handleUpdateContent} 
                     onScroll={handleEditorScroll}
@@ -243,7 +281,8 @@ export default function App() {
               {settings.viewMode === 'split' && (
                 <>
                   <div className="w-full h-1/2 md:w-1/2 md:h-full order-2 md:order-1 border-t md:border-t-0 md:border-r border-[var(--border-color)]">
-                    <Editor 
+                    <MemoizedEditor 
+                      key={activeNote.id}
                       content={activeNote.content} 
                       onChange={handleUpdateContent} 
                       onScroll={handleEditorScroll}
@@ -251,12 +290,14 @@ export default function App() {
                       autoCommentNextLine={settings.autoCommentNextLine}
                       syntaxHighlightRaw={settings.syntaxHighlightRaw}
                       scrollToLine={scrollToLine}
+                      percentage={scrollPercentage}
                     />
                   </div>
                   <div className="w-full h-1/2 md:w-1/2 md:h-full order-1 md:order-2 bg-[var(--bg-secondary)]">
                     <VirtualizedPreview 
                       content={debouncedContent} 
                       topLine={scrollInfo.topLine} 
+                      percentage={scrollInfo.percentage}
                       onChunkClick={handlePreviewClick}
                       onScroll={handlePreviewScroll}
                     />
@@ -266,7 +307,11 @@ export default function App() {
 
               {settings.viewMode === 'preview' && (
                 <div className="w-full h-full bg-[var(--bg-secondary)]">
-                  <BufferedPreview content={debouncedContent} />
+                  <VirtualizedPreview 
+                    content={debouncedContent} 
+                    percentage={scrollInfo.percentage}
+                    onScroll={handlePreviewScroll}
+                  />
                 </div>
               )}
 
@@ -291,6 +336,12 @@ export default function App() {
         isOpen={isSettingsOpen} 
         onClose={() => setIsSettingsOpen(false)} 
       />
+      
+      {/* <WordCountModal
+        isOpen={isWordCountModalOpen}
+        onClose={() => setIsWordCountModalOpen(false)}
+        stats={wordCount}
+      /> */}
     </div>
   );
 }

@@ -188,56 +188,31 @@ export const TopBar: React.FC<TopBarProps> = ({
                   <span>Word & Letter Count</span>
                 </button>
 
-                <div className="px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider border-t border-b border-[var(--border-color)] my-1 bg-[var(--bg-secondary)]/50">
-                  Settings
-                </div>
-
-                <button
-                  onClick={() => toggleSetting('liveWordCount')}
-                  className="w-full text-left px-4 py-2 hover:bg-[var(--bg-secondary)] flex items-center justify-between transition-colors group"
-                  title="Not recommended for low-end devices"
-                >
-                  <div className="flex items-center space-x-2">
-                    <Type size={14} />
-                    <div className="flex flex-col">
-                      <span>Live Word Count</span>
-                      <span className="text-[9px] text-[var(--text-tertiary)]">Not recommended for low-end devices</span>
+                {settings.viewMode === 'split' && (
+                  <button
+                    onClick={() => {
+                      toggleSetting('syncScroll');
+                      setMenuOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-[var(--bg-secondary)] flex items-center justify-between transition-colors"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <SplitSquareHorizontal size={14} />
+                      <span>Sync Scroll</span>
                     </div>
-                  </div>
-                  {settings.liveWordCount && <Check size={14} className="text-emerald-400" />}
-                </button>
+                    {settings.syncScroll && <Check size={14} className="text-emerald-400" />}
+                  </button>
+                )}
 
                 <button
-                  onClick={() => toggleSetting('autoCommentNextLine')}
-                  className="w-full text-left px-4 py-2 hover:bg-[var(--bg-secondary)] flex items-center justify-between transition-colors group"
+                  onClick={() => {
+                    onOpenSettings();
+                    setMenuOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-[var(--bg-secondary)] flex items-center space-x-2 transition-colors border-t border-[var(--border-color)] mt-1 pt-2"
                 >
-                  <div className="flex items-center space-x-2">
-                    <Code size={14} />
-                    <span>Auto Comment (Vim)</span>
-                  </div>
-                  {settings.autoCommentNextLine && <Check size={14} className="text-emerald-400" />}
-                </button>
-
-                <button
-                  onClick={() => toggleSetting('syntaxHighlightRaw')}
-                  className="w-full text-left px-4 py-2 hover:bg-[var(--bg-secondary)] flex items-center justify-between transition-colors group"
-                >
-                  <div className="flex items-center space-x-2">
-                    {settings.syntaxHighlightRaw ? <Eye size={14} /> : <EyeOff size={14} />}
-                    <span>Highlight Raw Editor</span>
-                  </div>
-                  {settings.syntaxHighlightRaw && <Check size={14} className="text-emerald-400" />}
-                </button>
-
-                <button
-                  onClick={() => toggleSetting('syntaxHighlightRendered')}
-                  className="w-full text-left px-4 py-2 hover:bg-[var(--bg-secondary)] flex items-center justify-between transition-colors group"
-                >
-                  <div className="flex items-center space-x-2">
-                    {settings.syntaxHighlightRendered ? <Eye size={14} /> : <EyeOff size={14} />}
-                    <span>Highlight Rendered</span>
-                  </div>
-                  {settings.syntaxHighlightRendered && <Check size={14} className="text-emerald-400" />}
+                  <Settings size={14} />
+                  <span>Settings</span>
                 </button>
               </div>
             )}

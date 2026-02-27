@@ -47,7 +47,7 @@ export function useEditorKeybindings(
           e.preventDefault();
           const newValueD = value.substring(0, selectionStart) + value.substring(selectionStart + 1);
           onChange(newValueD);
-          setTimeout(() => {
+          window.setTimeout(() => {
             target.setSelectionRange(selectionStart, selectionStart);
           }, 0);
           break;
@@ -56,7 +56,7 @@ export function useEditorKeybindings(
           if (selectionStart > 0) {
             const newValueH = value.substring(0, selectionStart - 1) + value.substring(selectionStart);
             onChange(newValueH);
-            setTimeout(() => {
+            window.setTimeout(() => {
               target.setSelectionRange(selectionStart - 1, selectionStart - 1);
             }, 0);
           }
@@ -103,7 +103,7 @@ export function useEditorKeybindings(
         if (currentLine === prefix.trimEnd() || currentLine === prefix) {
           const newValue = value.substring(0, selectionStart - prefix.length) + '\n' + value.substring(selectionStart);
           onChange(newValue);
-          setTimeout(() => {
+          window.setTimeout(() => {
             if (textareaRef.current) {
               textareaRef.current.selectionStart = selectionStart - prefix.length + 1;
               textareaRef.current.selectionEnd = selectionStart - prefix.length + 1;
@@ -115,7 +115,7 @@ export function useEditorKeybindings(
         } else {
           const newValue = value.substring(0, selectionStart) + '\n' + prefix + value.substring(selectionStart);
           onChange(newValue);
-          setTimeout(() => {
+          window.setTimeout(() => {
             if (textareaRef.current) {
               textareaRef.current.selectionStart = selectionStart + 1 + prefix.length;
               textareaRef.current.selectionEnd = selectionStart + 1 + prefix.length;

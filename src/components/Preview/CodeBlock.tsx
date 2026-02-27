@@ -2,6 +2,7 @@ import React, { useState, memo } from 'react';
 import SyntaxHighlighter from 'react-syntax-highlighter/dist/esm/prism';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Check, Copy } from 'lucide-react';
+import katex from 'katex';
 
 export const CodeBlock = memo(({ node, inline, className, children, syntaxHighlight = true, ...props }: any) => {
   const [copied, setCopied] = useState(false);
@@ -16,9 +17,21 @@ export const CodeBlock = memo(({ node, inline, className, children, syntaxHighli
   };
 
   if (!inline && match) {
+    if (language === 'math' || language === 'latex') {
+      try {
+        const html = katex.renderToString(codeString, {
+          displayMode: true,
+          throwOnError: false,
+        });
+        return <span className="block my-4" dangerouslySetInnerHTML={{ __html: html }} />;
+      } catch (e) {
+        // Fallback to code block if KaTeX fails
+      }
+    }
+
     return (
-      <div className="relative group my-4 rounded-lg overflow-hidden bg-[#1E1E1E] border border-zinc-800">
-        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2 bg-[#2D2D2D] text-xs text-zinc-400 font-mono border-b border-zinc-800">
+      <span className="block relative group my-4 rounded-lg overflow-hidden bg-[#1E1E1E] border border-zinc-800">
+        <span className="sticky top-0 z-10 flex items-center justify-between px-4 py-2 bg-[#2D2D2D] text-xs text-zinc-400 font-mono border-b border-zinc-800">
           <span>{language}</span>
           <button
             onClick={handleCopy}
@@ -28,25 +41,25 @@ export const CodeBlock = memo(({ node, inline, className, children, syntaxHighli
             {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
             <span>{copied ? 'Copied!' : 'Copy'}</span>
           </button>
-        </div>
-        <div className="overflow-x-auto">
+        </span>
+        <span className="block overflow-x-auto">
           {syntaxHighlight ? (
             <SyntaxHighlighter
               style={vscDarkPlus as any}
               language={language}
-              PreTag="div"
-              customStyle={{ margin: 0, padding: '1rem', background: 'transparent' }}
+              PreTag="span"
+              customStyle={{ margin: 0, padding: '1rem', background: 'transparent', display: 'block' }}
               {...props}
             >
               {codeString}
             </SyntaxHighlighter>
           ) : (
-            <pre className="m-0 p-4 bg-transparent text-zinc-300 font-mono text-sm overflow-x-auto">
+            <span className="block m-0 p-4 bg-transparent text-zinc-300 font-mono text-sm overflow-x-auto">
               <code>{codeString}</code>
-            </pre>
+            </span>
           )}
-        </div>
-      </div>
+        </span>
+      </span>
     );
   }
 

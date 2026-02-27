@@ -98,7 +98,7 @@ export function useNotes() {
     toast.className = 'fixed bottom-4 right-4 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg z-[100] animate-bounce';
     toast.innerText = 'Note Saved Successfully';
     document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2000);
+    window.setTimeout(() => toast.remove(), 2000);
   };
 
   const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>, onComplete?: () => void) => {

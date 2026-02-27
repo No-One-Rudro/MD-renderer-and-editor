@@ -4,14 +4,16 @@ import { useSettings } from '../../context/SettingsContext';
 
 interface BufferedPreviewProps {
   content: string;
+  scrollPercentage?: number;
 }
 
 const CHUNK_SIZE = 15000; // X characters max buffer
 
-export const BufferedPreview: React.FC<BufferedPreviewProps> = ({ content }) => {
+export const BufferedPreview: React.FC<BufferedPreviewProps> = ({ content, scrollPercentage }) => {
   const { settings } = useSettings();
   const [bufferStart, setBufferStart] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isInitialMount = useRef(true);
 
   const safeBufferStart = Math.max(0, Math.min(bufferStart, content.length - CHUNK_SIZE));
   const visibleContent = content.length > CHUNK_SIZE 
@@ -49,6 +51,23 @@ export const BufferedPreview: React.FC<BufferedPreviewProps> = ({ content }) => 
       setBufferStart(0);
     }
   }, [content, safeBufferStart]);
+
+  // Sync Scroll: Restore position on mount or update
+  useEffect(() => {
+    if (scrollPercentage !== undefined && scrollPercentage !== null && containerRef.current && isInitialMount.current) {
+      // Calculate buffer start based on percentage
+      const targetBufferStart = Math.floor(scrollPercentage * content.length);
+      setBufferStart(Math.max(0, targetBufferStart - CHUNK_SIZE / 2));
+      
+      window.setTimeout(() => {
+        if (containerRef.current) {
+          const { scrollHeight, clientHeight } = containerRef.current;
+          containerRef.current.scrollTop = (scrollHeight - clientHeight) / 2; // Middle of the buffer
+          isInitialMount.current = false;
+        }
+      }, 50);
+    }
+  }, [scrollPercentage, content.length]);
 
   return (
     <div 

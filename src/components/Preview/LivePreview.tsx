@@ -66,9 +66,6 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ content, onChange }) =
       finalContent = `$$\n${newChunkContent}\n$$`;
     }
 
-    const newChunks = [...chunks];
-    newChunks[index] = { ...newChunks[index], content: finalContent };
-    
     // Reconstruct full content
     const lines = content.split('\n');
     
@@ -89,8 +86,8 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ content, onChange }) =
     if (settings.viewMode === 'lightning') {
       return true; // Mode 4: Editable every chunk precisely
     }
-    if (settings.viewMode === 'live') {
-      return true; // Mode 5: Edit anything
+    if (settings.viewMode === 'live' && chunk.type === 'math') {
+      return true; // Mode 5: Edit only math blocks
     }
     return false;
   };
@@ -103,15 +100,19 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ content, onChange }) =
         overscan={overscan}
         itemContent={(index, chunk) => (
           <div 
-            key={`${index}-${chunk.startLine}`}
             className={clsx(
               "relative group px-4 md:px-8 py-1 transition-all duration-200",
               editingChunkIndex === index ? "bg-[var(--bg-secondary)] shadow-inner" : "hover:bg-[var(--bg-secondary)]/30"
             )}
-            onDoubleClick={() => {
+            onDoubleClick={(e) => {
+              if (window.getSelection()?.toString()) return;
               if (chunk.type === 'math' && settings.viewMode === 'live') {
                 startEditing(index, chunk.content);
-              } else if (canEditChunk(chunk)) {
+              }
+            }}
+            onClick={(e) => {
+              if (window.getSelection()?.toString()) return;
+              if (settings.viewMode === 'lightning' && canEditChunk(chunk)) {
                 startEditing(index, chunk.content);
               }
             }}
@@ -130,6 +131,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ content, onChange }) =
                     syntaxHighlightRaw={true}
                     minimal={settings.viewMode === 'live'}
                     autoFocus={true}
+                    debounceMs={0}
                   />
                 </div>
                 {settings.viewMode === 'lightning' && (

@@ -137,13 +137,16 @@ export const splitMarkdownIntoChunks = (markdown: string): Chunk[] => {
       }
     }
 
-    // 6. Paragraph Breaks (Empty Lines)
-    if (trimmed === '' && currentType === 'text') {
-      if (currentLines.length > 20) {
+    // 6. Paragraph Breaks (Empty Lines) or too long text chunks
+    if (currentType === 'text') {
+      if (trimmed === '') {
+        flush(i);
+        currentLines.push(line);
+        continue;
+      }
+      if (currentLines.length >= 10) {
         flush(i);
       }
-      currentLines.push(line);
-      continue;
     }
 
     // Default: Accumulate text
