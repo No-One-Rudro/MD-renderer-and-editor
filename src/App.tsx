@@ -203,7 +203,6 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-full bg-[var(--bg-secondary)] overflow-hidden font-sans text-[var(--text-primary)] transition-colors duration-200">
-      <div style={{ position: 'fixed', top: 0, left: 0, background: 'red', color: 'white', zIndex: 10000 }}>DEBUG: App Rendering</div>
       <Toast 
         message={toastMessage}
         isVisible={isToastVisible}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Search, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 
 interface FindReplaceProps {
   content: string;
@@ -12,12 +12,22 @@ export const FindReplace: React.FC<FindReplaceProps> = ({ content, onChange, onC
   const [replaceText, setReplaceText] = useState('');
   const [useRegex, setUseRegex] = useState(false);
   const [matchCase, setMatchCase] = useState(false);
+  const [multiLine, setMultiLine] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const getFlags = (global: boolean) => {
+    let flags = global ? 'g' : '';
+    if (!matchCase) flags += 'i';
+    if (multiLine) flags += 's'; // 's' enables dotAll mode where . matches newlines
+    return flags;
+  };
 
   const handleReplace = () => {
     if (!findText) return;
+    setError(null);
     try {
-      let flags = matchCase ? 'm' : 'im';
-      let search: RegExp | string = findText;
+      let search: RegExp;
+      const flags = getFlags(false);
 
       if (useRegex) {
         search = new RegExp(findText, flags);
@@ -30,15 +40,16 @@ export const FindReplace: React.FC<FindReplaceProps> = ({ content, onChange, onC
       const newContent = content.replace(search, replaceText);
       onChange(newContent);
     } catch (e) {
-      alert('Invalid Regex');
+      setError('Invalid Regex');
     }
   };
 
   const handleReplaceAll = () => {
     if (!findText) return;
+    setError(null);
     try {
-      let flags = matchCase ? 'gm' : 'igm';
       let search: RegExp;
+      const flags = getFlags(true);
 
       if (useRegex) {
         search = new RegExp(findText, flags);
@@ -50,7 +61,7 @@ export const FindReplace: React.FC<FindReplaceProps> = ({ content, onChange, onC
       const newContent = content.replace(search, replaceText);
       onChange(newContent);
     } catch (e) {
-      alert('Invalid Regex');
+      setError('Invalid Regex');
     }
   };
 
@@ -84,7 +95,7 @@ export const FindReplace: React.FC<FindReplaceProps> = ({ content, onChange, onC
         </div>
       </div>
 
-      <div className="flex items-center gap-4 text-xs text-[var(--text-secondary)]">
+      <div className="grid grid-cols-2 gap-2 text-xs text-[var(--text-secondary)]">
         <label className="flex items-center gap-1.5 cursor-pointer hover:text-[var(--text-primary)] transition-colors">
           <input 
             type="checkbox" 
@@ -103,7 +114,22 @@ export const FindReplace: React.FC<FindReplaceProps> = ({ content, onChange, onC
           /> 
           Match Case
         </label>
+        <label className="flex items-center gap-1.5 cursor-pointer hover:text-[var(--text-primary)] transition-colors col-span-2">
+          <input 
+            type="checkbox" 
+            checked={multiLine} 
+            onChange={e => setMultiLine(e.target.checked)} 
+            className="rounded border-[var(--border-color)] text-[var(--accent-color)] focus:ring-[var(--accent-color)] bg-[var(--bg-secondary)]"
+          /> 
+          Multi-line (Dot matches newline)
+        </label>
       </div>
+
+      {error && (
+        <div className="text-xs text-red-500 flex items-center gap-1">
+          <AlertCircle size={12} /> {error}
+        </div>
+      )}
 
       <div className="flex gap-2 mt-1">
         <button 

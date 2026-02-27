@@ -8,6 +8,7 @@ export interface AppSettings {
   syntaxHighlightRaw: boolean;
   syntaxHighlightRendered: boolean;
   syncScroll: boolean;
+  detectUnsaved: boolean;
   viewMode: 'raw' | 'split' | 'preview' | 'lightning' | 'live';
 }
 
@@ -17,6 +18,7 @@ const defaultSettings: AppSettings = {
   syntaxHighlightRaw: false,
   syntaxHighlightRendered: true,
   syncScroll: false,
+  detectUnsaved: true,
   viewMode: 'raw',
 };
 
