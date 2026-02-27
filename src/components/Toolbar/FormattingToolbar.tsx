@@ -38,7 +38,9 @@ export type ToolbarAction =
   | 'image'
   | 'indent'
   | 'brackets'
-  | 'parens';
+  | 'parens'
+  | 'formula'
+  | 'csv-table';
 
 interface FormattingToolbarProps {
   onAction: (action: ToolbarAction) => void;
@@ -54,6 +56,8 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({ onAction }
     { icon: <div className="font-bold text-xs">H2</div>, action: 'h2', label: 'Heading 2' },
     { icon: <div className="font-bold text-xs">H3</div>, action: 'h3', label: 'Heading 3' },
     { icon: <Quote size={16} />, action: 'quote', label: 'Quote' },
+    { icon: <div className="font-serif italic text-xs">f(x)</div>, action: 'formula', label: 'Insert Formula (LaTeX)' },
+    { icon: <div className="font-mono text-xs">CSV</div>, action: 'csv-table', label: 'Import CSV as Table' },
     { icon: <Code size={16} />, action: 'code', label: 'Inline Code' },
     { icon: <Terminal size={16} />, action: 'code-block', label: 'Code Block' },
     { icon: <LinkIcon size={16} />, action: 'link', label: 'Link' },

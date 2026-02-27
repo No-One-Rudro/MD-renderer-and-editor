@@ -32,7 +32,8 @@ export default function App() {
     handleUpdateContent,
     handleSave,
     handleImportFile,
-    handleDownloadNote
+    handleDownloadNote,
+    handleBulkDownload
   } = useNotes();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -220,6 +221,26 @@ export default function App() {
       case 'quote':
         editorRef.current.insertAtCursor('> ');
         break;
+      case 'formula':
+        editorRef.current.wrapSelection('$$', '$$', 'f(x) = ...');
+        break;
+      case 'csv-table':
+        const csv = window.prompt('Paste CSV data here (comma separated):');
+        if (csv) {
+          const lines = csv.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+          if (lines.length > 0) {
+            const rows = lines.map(line => line.split(',').map(cell => cell.trim()));
+            const header = rows[0];
+            const body = rows.slice(1);
+            let mdTable = `| ${header.join(' | ')} |\n`;
+            mdTable += `| ${header.map(() => '---').join(' | ')} |\n`;
+            body.forEach(row => {
+              mdTable += `| ${row.join(' | ')} |\n`;
+            });
+            editorRef.current.insertAtCursor(mdTable);
+          }
+        }
+        break;
       case 'code':
         editorRef.current.wrapSelection('`', '`', 'code');
         break;
@@ -304,6 +325,7 @@ export default function App() {
           onRenameNote={handleRenameNote}
           onImportFile={(e) => handleImportFile(e, () => setIsSidebarOpen(false))}
           onDownloadNote={handleDownloadNote}
+          onBulkDownload={handleBulkDownload}
           onCreateDailyNote={handleCreateDailyNote}
         />
       </div>

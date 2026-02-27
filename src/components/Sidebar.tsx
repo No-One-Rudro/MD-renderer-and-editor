@@ -13,6 +13,7 @@ interface SidebarProps {
   onRenameNote: (id: string, newTitle: string) => void;
   onImportFile: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onDownloadNote: (note: Note) => void;
+  onBulkDownload: (ids: string[]) => void;
   onCreateDailyNote: () => void;
 }
 
@@ -26,6 +27,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onRenameNote,
   onImportFile,
   onDownloadNote,
+  onBulkDownload,
   onCreateDailyNote,
 }) => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -78,6 +80,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
+  const handleBulkDownload = () => {
+    onBulkDownload(Array.from(selectedNoteIds));
+    setIsSelectionMode(false);
+    setSelectedNoteIds(new Set());
+  };
+
   const filteredNotes = notes.filter(note => 
     note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     note.content.toLowerCase().includes(searchQuery.toLowerCase())
@@ -110,6 +118,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
             
             {isSelectionMode ? (
               <>
+                <button
+                  onClick={handleBulkDownload}
+                  disabled={selectedNoteIds.size === 0}
+                  className={`p-1.5 rounded-md transition-colors ${selectedNoteIds.size > 0 ? 'text-[var(--accent-color)] hover:bg-[var(--bg-secondary)]' : 'text-[var(--text-tertiary)] cursor-not-allowed'}`}
+                  title="Download Selected"
+                >
+                  <Download size={18} />
+                </button>
                 <button
                   onClick={handleBulkDelete}
                   disabled={selectedNoteIds.size === 0}
@@ -152,7 +168,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] rounded-md transition-colors"
-                  title="Import File"
+                  title="Import Files"
                 >
                   <Upload size={18} />
                 </button>
@@ -168,6 +184,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
         
+        {!isSelectionMode && (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full mb-4 flex items-center justify-center space-x-2 py-2 px-4 bg-[var(--accent-color)] text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-medium shadow-sm"
+          >
+            <Upload size={16} />
+            <span>Import Files</span>
+          </button>
+        )}
+        
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
           <input 
@@ -182,8 +208,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
         {filteredNotes.length === 0 ? (
-          <div className="text-center p-4 text-sm text-[var(--text-tertiary)]">
-            {searchQuery ? 'No matching notes found.' : 'No notes yet. Create or import one to get started!'}
+          <div className="text-center p-8 text-sm text-[var(--text-tertiary)] flex flex-col items-center space-y-4">
+            <p>{searchQuery ? 'No matching notes found.' : 'No notes yet.'}</p>
+            {!searchQuery && (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center space-x-2 py-2 px-4 border border-[var(--border-color)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+              >
+                <Upload size={16} />
+                <span>Import your first note</span>
+              </button>
+            )}
           </div>
         ) : (
           filteredNotes.map((note) => (

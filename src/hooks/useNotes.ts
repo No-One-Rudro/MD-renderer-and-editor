@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Note, loadNotes, saveNotes, createNote } from '../store';
 import { format } from 'date-fns';
 import welcomeNote from '../assets/welcome-note.md?raw';
+import JSZip from 'jszip';
 
 export function useNotes() {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -160,6 +161,25 @@ export function useNotes() {
     URL.revokeObjectURL(url);
   };
 
+  const handleBulkDownload = async (ids: string[]) => {
+    const zip = new JSZip();
+    const selectedNotes = notes.filter(n => ids.includes(n.id));
+    
+    selectedNotes.forEach(note => {
+      zip.file(`${note.title || 'Untitled'}.md`, note.content);
+    });
+    
+    const content = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(content);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `notes_export_${format(new Date(), 'yyyyMMdd_HHmmss')}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return {
     notes,
     activeNote,
@@ -173,6 +193,7 @@ export function useNotes() {
     handleUpdateContent,
     handleSave,
     handleImportFile,
-    handleDownloadNote
+    handleDownloadNote,
+    handleBulkDownload
   };
 }
