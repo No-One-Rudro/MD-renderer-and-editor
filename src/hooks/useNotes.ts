@@ -78,14 +78,15 @@ export function useNotes() {
     if (!activeNoteId) return;
     
     const titleMatch = content.match(/^#\s+(.*)/m);
-    const title = titleMatch ? titleMatch[1].trim() : 'Untitled Note';
-
+    
     setNotes((prev) =>
-      prev.map((note) =>
-        note.id === activeNoteId
-          ? { ...note, content, title, updatedAt: Date.now() }
-          : note
-      )
+      prev.map((note) => {
+        if (note.id === activeNoteId) {
+          const newTitle = titleMatch ? titleMatch[1].trim() : note.title;
+          return { ...note, content, title: newTitle, updatedAt: Date.now() };
+        }
+        return note;
+      })
     );
     
     setUnsavedNotes(prev => new Set(prev).add(activeNoteId));
@@ -106,15 +107,7 @@ export function useNotes() {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    const validFiles = Array.from(files).filter(f => 
-      f.name.endsWith('.md') || f.name.endsWith('.txt') || f.name.endsWith('.markdown') || f.name.endsWith('.tex') || f.type.startsWith('text/') || f.name.includes('.') === false
-    );
-
-    if (validFiles.length === 0) {
-      alert("No valid text or markdown files found.");
-      event.target.value = '';
-      return;
-    }
+    const validFiles = Array.from(files);
 
     for (let i = 0; i < validFiles.length; i++) {
       const file = validFiles[i];
@@ -126,9 +119,23 @@ export function useNotes() {
           reader.readAsText(file);
         });
 
+        // Basic binary check: if content contains null bytes, it's probably binary
+        if (content.includes('\0')) {
+          console.warn(`Skipping binary file: ${file.name}`);
+          continue;
+        }
+
         const newNote = createNote();
-        newNote.title = file.name.replace(/\.[^/.]+$/, "");
-        newNote.content = content;
+        const extension = file.name.split('.').pop()?.toLowerCase() || '';
+        newNote.title = file.name;
+        
+        // If it's a known code extension, wrap it in a code block
+        const codeExtensions = ['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'c', 'cpp', 'h', 'cs', 'php', 'rb', 'go', 'rs', 'swift', 'kt', 'sql', 'sh', 'yaml', 'yml', 'xml', 'json', 'css', 'html'];
+        if (codeExtensions.includes(extension)) {
+          newNote.content = `\`\`\`${extension}\n${content}\n\`\`\``;
+        } else {
+          newNote.content = content;
+        }
 
         setNotes((prev) => {
           const updated = [newNote, ...prev];

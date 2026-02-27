@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Theme } from './lib/themes';
 import { get, set } from 'idb-keyval';
+import { ThemeType } from './components/Settings/types';
 
 export interface AppSettings {
   liveWordCount: boolean;
@@ -10,6 +11,11 @@ export interface AppSettings {
   syncScroll: boolean;
   detectUnsaved: boolean;
   viewMode: 'raw' | 'split' | 'preview' | 'lightning' | 'live';
+  theme: ThemeType;
+  userBackgroundColor: string;
+  customBgImage: string | null;
+  bgHistory: string[];
+  userCustomColor: string;
 }
 
 const defaultSettings: AppSettings = {
@@ -20,6 +26,11 @@ const defaultSettings: AppSettings = {
   syncScroll: false,
   detectUnsaved: true,
   viewMode: 'raw',
+  theme: ThemeType.DARK,
+  userBackgroundColor: '#121212',
+  customBgImage: null,
+  bgHistory: [],
+  userCustomColor: '#22c55e',
 };
 
 const SETTINGS_KEY = 'markdown_studio_settings';
@@ -83,9 +94,9 @@ export const saveNotes = async (notes: Note[]): Promise<void> => {
 
 export const loadTheme = (): Theme => {
   try {
-    return (localStorage.getItem(THEME_KEY) as Theme) || 'light';
+    return (localStorage.getItem(THEME_KEY) as Theme) || ThemeType.WHITE;
   } catch (e) {
-    return 'light';
+    return ThemeType.WHITE;
   }
 };
 

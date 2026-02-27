@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { X, Cloud, Monitor, HardDrive, Palette, Settings as SettingsIcon } from 'lucide-react';
-import { Theme } from '../lib/themes';
-import { loadTheme, saveTheme, AppSettings } from '../store';
+import { AppSettings } from '../store';
 import { useSettings } from '../context/SettingsContext';
 import { Accordion } from './Accordion';
 import { SettingsGeneral } from './Settings/SettingsGeneral';
@@ -17,20 +16,7 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const [currentTheme, setCurrentTheme] = useState<Theme>('light');
   const { settings, updateSettings } = useSettings();
-
-  useEffect(() => {
-    if (isOpen) {
-      setCurrentTheme(loadTheme());
-    }
-  }, [isOpen]);
-
-  const handleThemeChange = (theme: Theme) => {
-    setCurrentTheme(theme);
-    saveTheme(theme);
-    document.documentElement.setAttribute('data-theme', theme);
-  };
 
   const handleSettingChange = (key: keyof AppSettings, value: boolean) => {
     updateSettings({ [key]: value });
@@ -62,7 +48,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           </Accordion>
 
           <Accordion title="Themes" icon={<Palette size={18} />}>
-            <SettingsThemes currentTheme={currentTheme} onThemeChange={handleThemeChange} />
+            <SettingsThemes />
           </Accordion>
 
           <Accordion title="Plugins" icon={<HardDrive size={18} />}>

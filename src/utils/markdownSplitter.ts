@@ -144,8 +144,27 @@ export const splitMarkdownIntoChunks = (markdown: string): Chunk[] => {
         currentLines.push(line);
         continue;
       }
-      // Smaller chunks for better granularity (5 lines instead of 10)
-      if (currentLines.length >= 5) {
+      
+      // Split very long lines into multiple chunks for better visual sync
+      // Especially useful for mobile users where one line wraps many times
+      if (line.length > 300) {
+        flush(i);
+        // Break the long line into parts of ~200 chars
+        const parts = line.match(/.{1,200}/g) || [line];
+        parts.forEach((part, idx) => {
+          chunks.push({
+            content: part,
+            startLine: i + (idx / parts.length), // Fractional line number for sub-line sync
+            endLine: i + ((idx + 1) / parts.length),
+            type: 'text'
+          });
+        });
+        startLine = i + 1;
+        continue;
+      }
+
+      // Smaller chunks for better granularity (3 lines instead of 5)
+      if (currentLines.length >= 3) {
         flush(i);
       }
     }

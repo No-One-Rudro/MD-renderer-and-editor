@@ -41,17 +41,17 @@ export const VirtualizedPreview: React.FC<VirtualizedPreviewProps> = ({ content,
     if (virtuosoRef.current && chunks.length > 0) {
       isProgrammaticScroll.current = true;
       
-      if (percentage !== undefined) {
+      if (percentage !== undefined && percentage !== null) {
          // Scroll by percentage for smoother sync across wrapped lines
          const targetIndex = Math.floor(percentage * (chunks.length - 1));
-         if (Math.abs(targetIndex - currentStartIndexRef.current) > 0) {
+         if (Math.abs(targetIndex - currentStartIndexRef.current) > 2) { // Threshold to avoid jitter
             virtuosoRef.current.scrollToIndex({
               index: targetIndex,
               align: 'start',
               behavior: 'auto',
             });
          }
-      } else if (topLine !== undefined) {
+      } else if (topLine !== undefined && topLine !== null) {
         // Find the chunk that contains the topLine
         const targetChunkIndex = chunks.findIndex(chunk => chunk.startLine <= topLine && chunk.endLine >= topLine);
         
@@ -59,7 +59,7 @@ export const VirtualizedPreview: React.FC<VirtualizedPreviewProps> = ({ content,
           if (Math.abs(targetChunkIndex - currentStartIndexRef.current) > 0) {
              virtuosoRef.current.scrollToIndex({
               index: targetChunkIndex,
-              align: 'center', // Scroll to middle of screen
+              align: 'start', // Scroll to top of screen as requested
               behavior: 'auto',
             });
           }

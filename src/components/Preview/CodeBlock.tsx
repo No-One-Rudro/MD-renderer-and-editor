@@ -3,6 +3,7 @@ import SyntaxHighlighter from 'react-syntax-highlighter/dist/esm/prism';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Check, Copy } from 'lucide-react';
 import katex from 'katex';
+import { ChartComponent } from './ChartComponent';
 
 export const CodeBlock = memo(({ node, inline, className, children, syntaxHighlight = true, ...props }: any) => {
   const [copied, setCopied] = useState(false);
@@ -27,6 +28,10 @@ export const CodeBlock = memo(({ node, inline, className, children, syntaxHighli
       } catch (e) {
         // Fallback to code block if KaTeX fails
       }
+    }
+
+    if (language === 'chart') {
+      return <ChartComponent csvData={codeString} />;
     }
 
     return (

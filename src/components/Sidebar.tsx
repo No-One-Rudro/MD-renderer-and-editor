@@ -99,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="flex items-center space-x-1">
             <input
               type="file"
-              accept=".md,.txt,.tex,.js,.ts,.jsx,.tsx,.html,.css,.json,.py,.java,.c,.cpp,.h,.cs,.php,.rb,.go,.rs,.swift,.kt,.sql,.sh,.yaml,.yml,.xml"
+              accept="*"
               ref={fileInputRef}
               onChange={onImportFile}
               className="hidden"
@@ -185,13 +185,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
         
         {!isSelectionMode && (
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full mb-4 flex items-center justify-center space-x-2 py-2 px-4 bg-[var(--accent-color)] text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-medium shadow-sm"
-          >
-            <Upload size={16} />
-            <span>Import Files</span>
-          </button>
+          <div className="px-4 mb-4">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full flex items-center justify-center space-x-2 py-3 px-4 bg-[var(--accent-color)] text-white rounded-xl hover:brightness-110 active:scale-95 transition-all text-sm font-bold shadow-lg shadow-[var(--accent-color)]/20"
+            >
+              <Upload size={20} strokeWidth={3} />
+              <span className="uppercase tracking-widest">Import Files</span>
+            </button>
+          </div>
         )}
         
         <div className="relative">

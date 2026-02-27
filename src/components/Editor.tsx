@@ -268,20 +268,26 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(({
     const target = e.target as HTMLTextAreaElement;
     const { selectionStart, value } = target;
     if (selectionStart !== undefined) {
-      const lines = value.substr(0, selectionStart).split('\n').length;
-      const totalLines = value.split('\n').length;
-      const percentage = totalLines > 1 ? (lines - 1) / (totalLines - 1) : 0;
+      const lines = value.substr(0, selectionStart).split('\n');
+      const currentLineIdx = lines.length - 1;
+      const currentLineText = lines[currentLineIdx];
       
-      const currentLine = lines - 1;
+      // Calculate visual position within the line
+      // If line is long, cursor position within it matters for sync
+      const lineProgress = currentLineText.length > 0 ? selectionStart / value.length : 0;
+      
+      // We use a more granular percentage that accounts for cursor position
+      const totalChars = value.length || 1;
+      const granularPercentage = selectionStart / totalChars;
       
       // Auto-sync
       if (onScroll) {
-        onScroll({ percentage, topLine: currentLine });
+        onScroll({ percentage: granularPercentage, topLine: currentLineIdx });
       }
       
       // Manual click-to-sync
       if (e.type === 'click' && onClickLine) {
-        onClickLine(currentLine);
+        onClickLine(currentLineIdx);
       }
     }
   };

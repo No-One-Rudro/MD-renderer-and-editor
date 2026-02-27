@@ -40,7 +40,8 @@ export type ToolbarAction =
   | 'brackets'
   | 'parens'
   | 'formula'
-  | 'csv-table';
+  | 'csv-table'
+  | 'csv-chart';
 
 interface FormattingToolbarProps {
   onAction: (action: ToolbarAction) => void;
@@ -58,6 +59,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({ onAction }
     { icon: <Quote size={16} />, action: 'quote', label: 'Quote' },
     { icon: <div className="font-serif italic text-xs">f(x)</div>, action: 'formula', label: 'Insert Formula (LaTeX)' },
     { icon: <div className="font-mono text-xs">CSV</div>, action: 'csv-table', label: 'Import CSV as Table' },
+    { icon: <div className="font-mono text-xs">Chart</div>, action: 'csv-chart', label: 'Import CSV as Chart' },
     { icon: <Code size={16} />, action: 'code', label: 'Inline Code' },
     { icon: <Terminal size={16} />, action: 'code-block', label: 'Code Block' },
     { icon: <LinkIcon size={16} />, action: 'link', label: 'Link' },

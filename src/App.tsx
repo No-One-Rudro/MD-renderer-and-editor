@@ -9,11 +9,13 @@ import { FindReplace } from './components/FindReplace';
 import { TopBar } from './components/Toolbar/TopBar';
 import { FormattingToolbar, ToolbarAction } from './components/Toolbar/FormattingToolbar';
 import { loadTheme } from './store';
+import { ThemeType } from './components/Settings/types';
 import { useSettings } from './context/SettingsContext';
 import { useNotes } from './hooks/useNotes';
 import { CommandPalette } from './components/CommandPalette';
 import { Toast } from './components/Toast';
 import { WordCountModal } from './components/WordCountModal';
+import { MatrixRain } from './components/Settings/MatrixRain';
 
 // Memoize Editor to prevent unnecessary re-renders
 const MemoizedEditor = React.memo(Editor);
@@ -127,9 +129,27 @@ export default function App() {
   };
 
   useEffect(() => {
-    const savedTheme = loadTheme();
-    document.documentElement.setAttribute('data-theme', savedTheme);
-  }, []);
+    const theme = settings.theme;
+    document.documentElement.setAttribute('data-theme', theme);
+    
+    // Apply custom accent color
+    document.documentElement.style.setProperty('--accent-color', settings.userCustomColor);
+    
+    // Apply background image if custom_image theme is active
+    if (theme === ThemeType.CUSTOM_IMAGE && settings.customBgImage) {
+      document.body.style.backgroundImage = `url(${settings.customBgImage})`;
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundPosition = 'center';
+      document.body.style.backgroundAttachment = 'fixed';
+    } else {
+      document.body.style.backgroundImage = '';
+    }
+
+    // Apply custom background color if custom_color theme is active
+    if (theme === ThemeType.CUSTOM_COLOR) {
+      document.documentElement.style.setProperty('--bg-primary', settings.userBackgroundColor);
+    }
+  }, [settings.theme, settings.userCustomColor, settings.customBgImage, settings.userBackgroundColor]);
 
   useEffect(() => {
     if (!activeNote) return;
@@ -241,6 +261,12 @@ export default function App() {
           }
         }
         break;
+      case 'csv-chart':
+        const chartCsv = window.prompt('Paste CSV data here (label,value):');
+        if (chartCsv) {
+          editorRef.current.insertAtCursor(`\n\`\`\`chart\n${chartCsv}\n\`\`\`\n`);
+        }
+        break;
       case 'code':
         editorRef.current.wrapSelection('`', '`', 'code');
         break;
@@ -291,7 +317,8 @@ export default function App() {
   ];
 
   return (
-    <div className="flex h-screen w-full bg-[var(--bg-secondary)] overflow-hidden font-sans text-[var(--text-primary)] transition-colors duration-200">
+    <div className="flex h-screen w-full bg-[var(--bg-secondary)] overflow-hidden font-sans text-[var(--text-primary)] transition-colors duration-200 relative">
+      {settings.theme === ThemeType.AMOLED && <MatrixRain />}
       <Toast 
         message={toastMessage}
         isVisible={isToastVisible}
