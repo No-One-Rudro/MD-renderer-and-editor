@@ -100,8 +100,13 @@ export const TopBar: React.FC<TopBarProps> = ({
             </button>
           )}
 
-          <div className="flex flex-col justify-center">
-            <h1 className="text-xs sm:text-sm font-medium text-[var(--text-secondary)] truncate max-w-[200px]">
+          <div className="flex flex-col justify-center min-w-0">
+            <h1 
+              className={clsx(
+                "font-medium text-[var(--text-secondary)] whitespace-nowrap overflow-x-auto custom-scrollbar",
+                settings.viewMode === 'split' ? "text-base sm:text-lg max-w-[300px]" : "text-xs sm:text-sm truncate max-w-[200px]"
+              )}
+            >
               {title}
             </h1>
             <div className="flex items-center space-x-2">

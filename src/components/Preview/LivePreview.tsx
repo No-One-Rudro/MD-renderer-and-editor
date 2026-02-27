@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { Editor } from '../Editor';
 import { useSettings } from '../../context/SettingsContext';
-import { Edit3, Zap } from 'lucide-react';
-import { splitMarkdownIntoChunks, Chunk } from '../../utils/markdownSplitter';
+import { Edit3, X, Check } from 'lucide-react';
+import { splitMarkdownIntoChunks } from '../../utils/markdownSplitter';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import clsx from 'clsx';
 
@@ -16,174 +16,150 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ content, onChange }) =
   const { settings } = useSettings();
   const [editingChunkIndex, setEditingChunkIndex] = useState<number | null>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const [overscan, setOverscan] = useState<{ main: number, reverse: number }>({ main: 2000, reverse: 2000 });
 
-  const [tempChunkContent, setTempChunkContent] = useState<string>('');
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (settings.viewMode === 'live' && editingChunkIndex !== null) {
-        // If clicking outside the editor container
-        const target = event.target as HTMLElement;
-        if (!target.closest('.live-editor-container')) {
-          // In live mode, we commit on blur/click away
-          if (editingChunkIndex !== null) {
-             handleChunkUpdate(editingChunkIndex, tempChunkContent);
-          }
-          setEditingChunkIndex(null);
-        }
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [settings.viewMode, editingChunkIndex, tempChunkContent]);
+  // Store the content being edited locally to avoid full re-renders of the app
+  const [localEditContent, setLocalEditContent] = useState<string>('');
 
   const chunks = useMemo(() => splitMarkdownIntoChunks(content), [content]);
 
   useEffect(() => {
     const handleResize = () => {
       const height = window.innerHeight;
-      // 10 pages ahead and behind as requested
-      setOverscan({ main: height * 10, reverse: height * 10 });
+      setOverscan({ main: height * 5, reverse: height * 5 });
     };
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const startEditing = (index: number, currentContent: string) => {
+  const startEditing = (index: number, chunkContent: string) => {
     setEditingChunkIndex(index);
-    setTempChunkContent(currentContent);
+    setLocalEditContent(chunkContent);
   };
 
-  const handleChunkUpdate = (index: number, newChunkContent: string) => {
-    const chunk = chunks[index];
-    let finalContent = newChunkContent;
-    
-    // If it's a math block and we are editing just the inner part
-    if (chunk.type === 'math' && !newChunkContent.trim().startsWith('$$')) {
-      finalContent = `$$\n${newChunkContent}\n$$`;
-    }
+  const cancelEditing = () => {
+    setEditingChunkIndex(null);
+    setLocalEditContent('');
+  };
 
-    // Reconstruct full content
+  const commitChanges = useCallback(() => {
+    if (editingChunkIndex === null) return;
+
+    const chunk = chunks[editingChunkIndex];
+    
+    // We need to replace the specific lines in the original content
+    // This is a bit complex because we need to map chunk lines back to original lines
+    // A simpler approach for this prototype is to reconstruct the file from chunks, 
+    // but that loses non-chunked formatting if the splitter isn't perfect.
+    // Better: Use the chunk's start/end lines.
+
     const lines = content.split('\n');
-    
-    // Replace lines in the original content
     const newLines = [...lines];
-    const updatedChunkLines = finalContent.split('\n');
+    const newChunkLines = localEditContent.split('\n');
     
-    newLines.splice(chunk.startLine, (chunk.endLine - chunk.startLine) + 1, ...updatedChunkLines);
+    // Replace the range
+    // Note: chunk.endLine is inclusive
+    const linesToRemove = (chunk.endLine - chunk.startLine) + 1;
+    newLines.splice(chunk.startLine, linesToRemove, ...newChunkLines);
     
     onChange(newLines.join('\n'));
-  };
+    setEditingChunkIndex(null);
+  }, [editingChunkIndex, chunks, content, localEditContent, onChange]);
 
-  const getMathContent = (content: string) => {
-    return content.replace(/^\$\$\n?/, '').replace(/\n?\$\$$/, '');
-  };
-
-  const canEditChunk = (chunk: Chunk) => {
-    if (settings.viewMode === 'lightning') {
-      return true; // Mode 4: Editable every chunk precisely
-    }
-    if (settings.viewMode === 'live' && chunk.type === 'math') {
-      return true; // Mode 5: Edit only math blocks
-    }
-    return false;
-  };
+  // Handle Ctrl+Enter to save
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (editingChunkIndex !== null && (e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        commitChanges();
+      }
+      if (editingChunkIndex !== null && e.key === 'Escape') {
+        e.preventDefault();
+        cancelEditing();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editingChunkIndex, commitChanges]);
 
   return (
-    <div className="h-full w-full bg-[var(--bg-primary)] overflow-hidden" ref={containerRef}>
+    <div className="h-full w-full bg-[var(--bg-primary)] overflow-hidden">
       <Virtuoso
         ref={virtuosoRef}
         data={chunks}
         overscan={overscan}
-        itemContent={(index, chunk) => (
-          <div 
-            className={clsx(
-              "relative group px-4 md:px-8 py-1 transition-all duration-200",
-              editingChunkIndex === index ? "bg-[var(--bg-secondary)] shadow-inner" : "hover:bg-[var(--bg-secondary)]/30"
-            )}
-            onDoubleClick={(e) => {
-              if (window.getSelection()?.toString()) return;
-              if (chunk.type === 'math' && settings.viewMode === 'live') {
-                startEditing(index, chunk.content);
-              }
-            }}
-            onClick={(e) => {
-              if (window.getSelection()?.toString()) return;
-              if (settings.viewMode === 'lightning' && canEditChunk(chunk)) {
-                startEditing(index, chunk.content);
-              }
-            }}
-          >
-            {editingChunkIndex === index ? (
-              <div className="py-2 live-editor-container">
-                <div className={clsx(
-                  "overflow-hidden transition-all",
-                  settings.viewMode === 'live' ? "bg-transparent" : "border-2 rounded-lg bg-[var(--bg-primary)] shadow-lg",
-                  settings.viewMode === 'lightning' ? (chunk.type === 'math' ? "border-[var(--math-edit-border)]" : "border-[var(--accent-color)]") : "border-transparent"
-                )}>
-                  <Editor
-                    content={chunk.type === 'math' ? getMathContent(tempChunkContent) : tempChunkContent}
-                    onChange={(val) => setTempChunkContent(val)}
-                    autoCommentNextLine={settings.autoCommentNextLine}
-                    syntaxHighlightRaw={true}
-                    minimal={settings.viewMode === 'live'}
-                    autoFocus={true}
-                    debounceMs={0}
-                  />
-                </div>
-                {settings.viewMode === 'lightning' && (
-                  <div className="flex justify-between mt-1">
+        itemContent={(index, chunk) => {
+          const isEditing = editingChunkIndex === index;
+
+          return (
+            <div 
+              className={clsx(
+                "relative group px-4 md:px-8 py-2 transition-all duration-200 border-l-4",
+                isEditing 
+                  ? "border-[var(--accent-color)] bg-[var(--bg-secondary)]/10" 
+                  : "border-transparent hover:border-[var(--border-color)]"
+              )}
+              onDoubleClick={(e) => {
+                if (!isEditing && !window.getSelection()?.toString()) {
+                   startEditing(index, chunk.content);
+                }
+              }}
+            >
+              {isEditing ? (
+                <div className="animate-in fade-in zoom-in-95 duration-100">
+                  <div className="border border-[var(--accent-color)] rounded-lg overflow-hidden shadow-lg bg-[var(--bg-primary)]">
+                    <Editor
+                      content={localEditContent}
+                      onChange={setLocalEditContent}
+                      autoCommentNextLine={settings.autoCommentNextLine}
+                      syntaxHighlightRaw={true}
+                      autoFocus={true}
+                      className="min-h-[100px] max-h-[60vh]"
+                    />
+                  </div>
+                  <div className="flex justify-end mt-2 space-x-2">
                     <button 
-                      onClick={() => setEditingChunkIndex(null)}
-                      className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded hover:opacity-90 shadow-sm transition-all uppercase font-bold"
+                      onClick={cancelEditing}
+                      className="flex items-center space-x-1 px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] rounded-md transition-colors"
                     >
-                      Cancel
+                      <X size={14} />
+                      <span>Cancel (Esc)</span>
                     </button>
                     <button 
-                      onClick={() => {
-                        handleChunkUpdate(index, tempChunkContent);
-                        setEditingChunkIndex(null);
-                      }}
-                      className="text-[10px] bg-[var(--accent-color)] text-white px-2 py-0.5 rounded hover:opacity-90 shadow-sm transition-all uppercase font-bold"
+                      onClick={commitChanges}
+                      className="flex items-center space-x-1 px-3 py-1.5 text-xs font-medium text-white bg-[var(--accent-color)] hover:opacity-90 rounded-md shadow-sm transition-all"
                     >
-                      Done
+                      <Check size={14} />
+                      <span>Done (Ctrl+Enter)</span>
                     </button>
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="relative">
-                {/* Floating Edit Button for Chunks */}
-                {canEditChunk(chunk) && (
+                </div>
+              ) : (
+                <div className="relative">
+                  <div className="markdown-body">
+                    <MarkdownRenderer 
+                      content={chunk.content} 
+                      syntaxHighlight={settings.syntaxHighlightRendered} 
+                    />
+                  </div>
+                  
+                  {/* Edit Button overlay */}
                   <button 
                     onClick={() => startEditing(index, chunk.content)}
-                    className="absolute -right-2 top-0 p-1.5 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-md opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:text-[var(--accent-color)] z-10"
+                    className="absolute top-0 right-0 p-1.5 text-[var(--text-tertiary)] hover:text-[var(--accent-color)] opacity-0 group-hover:opacity-100 transition-all bg-[var(--bg-primary)]/80 backdrop-blur-sm rounded-md border border-[var(--border-color)] shadow-sm"
                     title="Edit Block"
                   >
                     <Edit3 size={14} />
                   </button>
-                )}
-                
-                <div className={clsx(
-                  "markdown-body",
-                  chunk.type === 'math' && "cursor-pointer py-2 px-4 rounded-lg bg-[var(--bg-secondary)]/20 border border-transparent hover:border-[var(--math-edit-border)]/30 transition-all"
-                )}>
-                  <MarkdownRenderer 
-                    content={chunk.content} 
-                    syntaxHighlight={settings.syntaxHighlightRendered} 
-                  />
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          );
+        }}
         className="h-full w-full custom-scrollbar"
-        // Add a large footer to allow scrolling past the last chunk
         components={{
-          Footer: () => <div className="h-[60vh]" />
+          Footer: () => <div className="h-[40vh]" />
         }}
       />
     </div>

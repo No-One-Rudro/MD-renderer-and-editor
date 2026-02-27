@@ -25,8 +25,8 @@ export const VirtualizedPreview: React.FC<VirtualizedPreviewProps> = ({ content,
   useEffect(() => {
     const handleResize = () => {
       const height = window.innerHeight;
-      // 25 pages ahead and behind (total 50+ pages buffer) to save RAM while keeping smooth scroll
-      setOverscan({ main: height * 25, reverse: height * 25 });
+      // 15 pages ahead and behind (total ~30 pages buffer) for better performance
+      setOverscan({ main: height * 15, reverse: height * 15 });
     };
 
     handleResize(); // Initial
