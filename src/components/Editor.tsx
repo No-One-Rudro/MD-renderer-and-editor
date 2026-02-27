@@ -299,7 +299,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(({
       onScroll={handleScroll}
     >
       {syntaxHighlightRaw ? (
-        <div className={`min-h-full ${minimal ? 'p-0' : 'p-8'}`} onClick={handleKeyUp} onKeyUp={handleKeyUp}>
+        <div className={`min-h-full ${minimal ? 'p-0' : 'p-8 pb-[75vh]'}`} onClick={handleKeyUp} onKeyUp={handleKeyUp}>
           <EditorComponent
             value={localContent || ''}
             onValueChange={handleLocalChange}
@@ -318,7 +318,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(({
       ) : (
         <textarea
           ref={textareaRef}
-          className={`flex-1 w-full h-full ${minimal ? 'p-0' : 'p-8'} resize-none focus:outline-none font-mono text-sm text-[var(--text-primary)] ${minimal ? 'bg-transparent' : 'bg-[var(--bg-primary)]'} leading-relaxed transition-colors duration-200 whitespace-pre overflow-x-auto custom-scrollbar`}
+          className={`flex-1 w-full h-full ${minimal ? 'p-0' : 'p-8 pb-[75vh]'} resize-none focus:outline-none font-mono text-sm text-[var(--text-primary)] ${minimal ? 'bg-transparent' : 'bg-[var(--bg-primary)]'} leading-relaxed transition-colors duration-200 whitespace-pre overflow-x-auto custom-scrollbar`}
           value={localContent || ''}
           onChange={(e) => handleLocalChange(e.target.value)}
           onKeyDown={handleKeyDown}

@@ -248,7 +248,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <FileText size={16} className={activeNoteId === note.id ? 'text-[var(--accent-color)] shrink-0' : 'text-[var(--text-tertiary)] shrink-0'} />
                 )}
                 <div className="overflow-hidden flex-1">
-                  <p className="text-sm font-medium truncate">
+                  <p className="text-sm font-medium break-words">
                     {note.title || 'Untitled Note'}
                     {unsavedNotes.has(note.id) && <span className="text-[var(--accent-color)] ml-1">*</span>}
                   </p>

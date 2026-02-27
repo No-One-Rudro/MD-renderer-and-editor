@@ -114,6 +114,9 @@ export const VirtualizedPreview: React.FC<VirtualizedPreviewProps> = ({ content,
             />
           </div>
         )}
+        components={{
+          Footer: () => <div className="h-[75vh]" />
+        }}
         className="h-full w-full custom-scrollbar"
       />
     </div>
