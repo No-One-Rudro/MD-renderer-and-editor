@@ -77,7 +77,7 @@ export const TopBar: React.FC<TopBarProps> = ({
     <div className="bg-[var(--bg-primary)] border-b border-[var(--border-color)] flex flex-col shrink-0 transition-colors duration-200 z-50 relative">
       {/* Top Row: Save, Title, Actions */}
       <div className="h-12 flex items-center justify-between px-2 sm:px-4">
-        <div className="flex items-center space-x-3 min-w-0 flex-1">
+        <div className="flex items-center space-x-3">
           <button 
             onClick={onToggleSidebar}
             className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] md:hidden rounded-lg hover:bg-[var(--bg-secondary)] flex-shrink-0"
@@ -100,11 +100,11 @@ export const TopBar: React.FC<TopBarProps> = ({
             </button>
           )}
 
-          <div className="flex flex-col justify-center min-w-0 flex-1">
+          <div className="flex flex-col justify-center min-w-0">
             <h1 
               className={clsx(
-                "font-medium text-[var(--text-secondary)] whitespace-nowrap overflow-x-auto custom-scrollbar w-full",
-                settings.viewMode === 'split' ? "text-base sm:text-lg" : "text-xs sm:text-sm"
+                "font-medium text-[var(--text-secondary)] whitespace-nowrap overflow-x-auto custom-scrollbar",
+                settings.viewMode === 'split' ? "text-base sm:text-lg max-w-[300px]" : "text-xs sm:text-sm truncate max-w-[200px]"
               )}
             >
               {title}

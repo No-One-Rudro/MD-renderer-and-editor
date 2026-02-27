@@ -215,7 +215,6 @@
   background: transparent !important;
   text-rendering: optimizeLegibility;
   font-variant-ligatures: normal;
-  padding-bottom: 75vh;
 }
 
 .markdown-body pre {
