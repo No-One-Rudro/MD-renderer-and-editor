@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
-import { Editor } from './components/Editor';
+import { Editor, EditorHandle } from './components/Editor';
 import { VirtualizedPreview } from './components/Preview/VirtualizedPreview';
 import { BufferedPreview } from './components/Preview/BufferedPreview';
 import { LivePreview } from './components/Preview/LivePreview';
 import { SettingsModal } from './components/SettingsModal';
 import { FindReplace } from './components/FindReplace';
 import { TopBar } from './components/Toolbar/TopBar';
+import { FormattingToolbar, ToolbarAction } from './components/Toolbar/FormattingToolbar';
 import { loadTheme } from './store';
 import { useSettings } from './context/SettingsContext';
 import { useNotes } from './hooks/useNotes';
@@ -46,6 +47,8 @@ export default function App() {
   
   const { settings, updateSettings } = useSettings();
   
+  const editorRef = useRef<EditorHandle>(null);
+
   const showToast = (message: string) => {
     setToastMessage(message);
     setIsToastVisible(true);
@@ -189,6 +192,71 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [handleSave]);
 
+  const handleToolbarAction = (action: ToolbarAction) => {
+    if (!editorRef.current) return;
+
+    switch (action) {
+      case 'bold':
+        editorRef.current.wrapSelection('**', '**', 'bold text');
+        break;
+      case 'italic':
+        editorRef.current.wrapSelection('*', '*', 'italic text');
+        break;
+      case 'strikethrough':
+        editorRef.current.wrapSelection('~~', '~~', 'strikethrough text');
+        break;
+      case 'underline':
+        editorRef.current.wrapSelection('<ins>', '</ins>', 'underlined text');
+        break;
+      case 'h1':
+        editorRef.current.insertAtCursor('# ');
+        break;
+      case 'h2':
+        editorRef.current.insertAtCursor('## ');
+        break;
+      case 'h3':
+        editorRef.current.insertAtCursor('### ');
+        break;
+      case 'quote':
+        editorRef.current.insertAtCursor('> ');
+        break;
+      case 'code':
+        editorRef.current.wrapSelection('`', '`', 'code');
+        break;
+      case 'code-block':
+        editorRef.current.wrapSelection('\n```\n', '\n```\n', 'code block');
+        break;
+      case 'link':
+        editorRef.current.wrapSelection('[', '](url)', 'link text');
+        break;
+      case 'image':
+        editorRef.current.wrapSelection('![', '](url)', 'image alt');
+        break;
+      case 'list-ul':
+        editorRef.current.insertAtCursor('- ');
+        break;
+      case 'list-ol':
+        editorRef.current.insertAtCursor('1. ');
+        break;
+      case 'todo':
+        editorRef.current.insertAtCursor('- [ ] ');
+        break;
+      case 'hr':
+        editorRef.current.insertAtCursor('\n---\n');
+        break;
+      case 'indent':
+        editorRef.current.insertAtCursor('    ');
+        break;
+      case 'brackets':
+        editorRef.current.wrapSelection('[', ']');
+        break;
+      case 'parens':
+        editorRef.current.wrapSelection('(', ')');
+        break;
+    }
+    editorRef.current.focus();
+  };
+
   const commands = [
     { name: 'Switch to Raw Mode', action: () => updateSettings({ viewMode: 'raw' }) },
     { name: 'Switch to Split Mode', action: () => updateSettings({ viewMode: 'split' }) },
@@ -252,6 +320,10 @@ export default function App() {
           onToggleSidebar={() => setIsSidebarOpen(true)}
         />
 
+        {activeNote && (settings.viewMode === 'raw' || settings.viewMode === 'split') && (
+          <FormattingToolbar onAction={handleToolbarAction} />
+        )}
+
         {showFindReplace && activeNote && (
           <FindReplace 
             content={activeNote.content} 
@@ -266,6 +338,7 @@ export default function App() {
               {settings.viewMode === 'raw' && (
                 <div className="w-full h-full">
                   <MemoizedEditor 
+                    ref={editorRef}
                     key={activeNote.id}
                     content={activeNote.content} 
                     onChange={handleUpdateContent} 
@@ -281,6 +354,7 @@ export default function App() {
                 <>
                   <div className="w-full h-1/2 md:w-1/2 md:h-full order-2 md:order-1 border-t md:border-t-0 md:border-r border-[var(--border-color)]">
                     <MemoizedEditor 
+                      ref={editorRef}
                       key={activeNote.id}
                       content={activeNote.content} 
                       onChange={handleUpdateContent} 

@@ -1,11 +1,38 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
 import EditorComponent from 'react-simple-code-editor';
 import Prism from 'prismjs/components/prism-core';
 import 'prismjs/components/prism-clike';
 import 'prismjs/components/prism-markup';
 import 'prismjs/components/prism-markdown';
+import 'prismjs/components/prism-javascript';
+import 'prismjs/components/prism-typescript';
+import 'prismjs/components/prism-jsx';
+import 'prismjs/components/prism-tsx';
+import 'prismjs/components/prism-css';
+import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-java';
+import 'prismjs/components/prism-c';
+import 'prismjs/components/prism-cpp';
+import 'prismjs/components/prism-csharp';
+import 'prismjs/components/prism-bash';
+import 'prismjs/components/prism-json';
+import 'prismjs/components/prism-sql';
+import 'prismjs/components/prism-yaml';
+import 'prismjs/components/prism-rust';
+import 'prismjs/components/prism-go';
+import 'prismjs/components/prism-graphql';
+import 'prismjs/components/prism-docker';
+import 'prismjs/components/prism-makefile';
 import 'prismjs/themes/prism-tomorrow.css';
 import { useEditorKeybindings } from '../hooks/useEditorKeybindings';
+
+export interface EditorHandle {
+  insertAtCursor: (text: string) => void;
+  wrapSelection: (prefix: string, suffix: string, defaultText?: string) => void;
+  getSelection: () => { start: number; end: number; text: string };
+  replaceSelection: (text: string) => void;
+  focus: () => void;
+}
 
 interface EditorProps {
   content: string;
@@ -19,9 +46,10 @@ interface EditorProps {
   minimal?: boolean;
   autoFocus?: boolean;
   debounceMs?: number;
+  className?: string;
 }
 
-export const Editor: React.FC<EditorProps> = ({ 
+export const Editor = forwardRef<EditorHandle, EditorProps>(({ 
   content, 
   onChange, 
   onScroll,
@@ -32,11 +60,17 @@ export const Editor: React.FC<EditorProps> = ({
   percentage,
   minimal = false,
   autoFocus = false,
-  debounceMs = 300
-}) => {
+  debounceMs = 300,
+  className
+}, ref) => {
   const [localContent, setLocalContent] = useState(content);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
   const isInternalChange = useRef(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // To restore selection after programmatic updates
+  const pendingSelectionRef = useRef<{ start: number, end: number } | null>(null);
 
   useEffect(() => {
     if (!isInternalChange.current && content !== localContent) {
@@ -44,6 +78,21 @@ export const Editor: React.FC<EditorProps> = ({
     }
     isInternalChange.current = false;
   }, [content]);
+
+  // Restore selection after render if pending
+  useEffect(() => {
+    if (pendingSelectionRef.current) {
+      const textarea = syntaxHighlightRaw 
+        ? document.getElementById('code-editor') as HTMLTextAreaElement
+        : textareaRef.current;
+        
+      if (textarea) {
+        textarea.setSelectionRange(pendingSelectionRef.current.start, pendingSelectionRef.current.end);
+        textarea.focus();
+        pendingSelectionRef.current = null;
+      }
+    }
+  });
 
   const handleLocalChange = (newContent: string) => {
     isInternalChange.current = true;
@@ -59,8 +108,68 @@ export const Editor: React.FC<EditorProps> = ({
     }
   };
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const getTextArea = () => {
+    return syntaxHighlightRaw 
+      ? document.getElementById('code-editor') as HTMLTextAreaElement
+      : textareaRef.current;
+  };
+
+  useImperativeHandle(ref, () => ({
+    insertAtCursor: (text: string) => {
+      const textarea = getTextArea();
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const currentText = textarea.value;
+      
+      const newText = currentText.substring(0, start) + text + currentText.substring(end);
+      
+      handleLocalChange(newText);
+      pendingSelectionRef.current = { start: start + text.length, end: start + text.length };
+    },
+    wrapSelection: (prefix: string, suffix: string, defaultText: string = '') => {
+      const textarea = getTextArea();
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const currentText = textarea.value;
+      const selectedText = currentText.substring(start, end) || defaultText;
+      
+      const newText = currentText.substring(0, start) + prefix + selectedText + suffix + currentText.substring(end);
+      
+      handleLocalChange(newText);
+      // Select the wrapped text (excluding prefix/suffix)
+      pendingSelectionRef.current = { start: start + prefix.length, end: start + prefix.length + selectedText.length };
+    },
+    replaceSelection: (text: string) => {
+      const textarea = getTextArea();
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const currentText = textarea.value;
+      
+      const newText = currentText.substring(0, start) + text + currentText.substring(end);
+      
+      handleLocalChange(newText);
+      pendingSelectionRef.current = { start: start + text.length, end: start + text.length };
+    },
+    getSelection: () => {
+      const textarea = getTextArea();
+      if (!textarea) return { start: 0, end: 0, text: '' };
+      return {
+        start: textarea.selectionStart,
+        end: textarea.selectionEnd,
+        text: textarea.value.substring(textarea.selectionStart, textarea.selectionEnd)
+      };
+    },
+    focus: () => {
+      const textarea = getTextArea();
+      if (textarea) textarea.focus();
+    }
+  }));
 
   const { handleKeyDown } = useEditorKeybindings(handleLocalChange, autoCommentNextLine, textareaRef);
 
@@ -94,7 +203,48 @@ export const Editor: React.FC<EditorProps> = ({
 
   const highlightWithPrism = (code: string) => {
     if (!syntaxHighlightRaw || !Prism.languages.markdown) return code;
-    return Prism.highlight(code, Prism.languages.markdown, 'markdown');
+
+    // 1. Tokenize with Markdown
+    const tokens = Prism.tokenize(code, Prism.languages.markdown);
+
+    // 2. Process tokens to find code blocks and highlight them
+    const processedTokens = tokens.map(token => {
+      if (typeof token === 'string' || token.type !== 'code') {
+        return token;
+      }
+
+      // It's a code block. Content might be string or array of tokens/strings.
+      // We stringify it to get the raw text of the block to parse it ourselves.
+      const blockContent = Prism.Token.stringify(token.content, 'markdown');
+      
+      // Regex to parse fenced code block: ```lang ... ```
+      // Captures: 1=OpenFence, 2=Lang, 3=Body, 4=CloseFence
+      // We allow optional spaces around lang
+      // Note: This regex assumes the block starts with ```lang
+      const match = blockContent.match(/^(\s*`{3,})(?:[ \t]*)([a-zA-Z0-9_\-]+)(?:[ \t]*)((?:\r\n|\r|\n)[\s\S]*?)(\s*`{3,}\s*)$/);
+
+      if (match) {
+        const [, openFence, lang, body, closeFence] = match;
+        const grammar = Prism.languages[lang] || Prism.languages[lang.toLowerCase()];
+
+        if (grammar) {
+          // Highlight the body with the specific language
+          const highlightedBody = Prism.tokenize(body, grammar);
+
+          // Reconstruct the token content
+          token.content = [
+            new Prism.Token('punctuation', openFence),
+            new Prism.Token('language-' + lang, lang),
+            ...highlightedBody,
+            new Prism.Token('punctuation', closeFence)
+          ];
+        }
+      }
+      
+      return token;
+    });
+
+    return Prism.Token.stringify(processedTokens, 'markdown');
   };
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement | HTMLTextAreaElement>) => {
@@ -139,7 +289,7 @@ export const Editor: React.FC<EditorProps> = ({
   return (
     <div 
       ref={containerRef}
-      className={`flex-1 h-full flex flex-col ${minimal ? '' : 'bg-[var(--bg-primary)]'} transition-colors duration-200 overflow-y-auto`}
+      className={`flex-1 h-full flex flex-col ${minimal ? '' : 'bg-[var(--bg-primary)]'} transition-colors duration-200 overflow-y-auto ${className || ''}`}
       onScroll={handleScroll}
     >
       {syntaxHighlightRaw ? (
@@ -175,4 +325,4 @@ export const Editor: React.FC<EditorProps> = ({
       )}
     </div>
   );
-};
+});
