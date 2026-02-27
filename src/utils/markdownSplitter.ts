@@ -144,7 +144,8 @@ export const splitMarkdownIntoChunks = (markdown: string): Chunk[] => {
         currentLines.push(line);
         continue;
       }
-      if (currentLines.length >= 10) {
+      // Smaller chunks for better granularity (5 lines instead of 10)
+      if (currentLines.length >= 5) {
         flush(i);
       }
     }
