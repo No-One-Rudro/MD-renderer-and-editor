@@ -108,16 +108,14 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ content, onChange }) =
               }}
             >
               {isEditing ? (
-                <div className="animate-in fade-in duration-100">
-                  <div className="-mx-4 md:-mx-8 px-4 md:px-8 bg-[var(--bg-primary)]">
+                <div className="animate-in fade-in zoom-in-95 duration-100">
+                  <div className="border border-[var(--accent-color)] rounded-lg overflow-hidden shadow-lg bg-[var(--bg-primary)]">
                     <Editor
                       content={localEditContent}
                       onChange={setLocalEditContent}
                       autoCommentNextLine={settings.autoCommentNextLine}
                       syntaxHighlightRaw={true}
                       autoFocus={true}
-                      minimal={true}
-                      debounceMs={0}
                       className="min-h-[100px] max-h-[60vh]"
                     />
                   </div>
