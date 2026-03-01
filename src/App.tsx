@@ -459,11 +459,11 @@ export default function App() {
         onClose={() => setIsSettingsOpen(false)} 
       />
       
-      {/* <WordCountModal
+      <WordCountModal
         isOpen={isWordCountModalOpen}
         onClose={() => setIsWordCountModalOpen(false)}
         stats={wordCount}
-      /> */}
+      />
     </div>
   );
 }

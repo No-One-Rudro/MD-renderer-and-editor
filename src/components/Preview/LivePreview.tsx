@@ -20,6 +20,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ content, onChange }) =
 
   // Store the content being edited locally to avoid full re-renders of the app
   const [localEditContent, setLocalEditContent] = useState<string>('');
+  const lastTapTimeRef = useRef<number>(0);
 
   const chunks = useMemo(() => splitMarkdownIntoChunks(content), [content]);
 
@@ -100,21 +101,23 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ content, onChange }) =
                   ? "border-[var(--accent-color)] bg-[var(--bg-secondary)]/10" 
                   : "border-transparent hover:border-[var(--border-color)]"
               )}
-              onDoubleClick={(e) => {
+              onClick={(e) => {
                 if (!isEditing && !window.getSelection()?.toString()) {
                    startEditing(index, chunk.content);
                 }
               }}
             >
               {isEditing ? (
-                <div className="animate-in fade-in zoom-in-95 duration-100">
-                  <div className="border border-[var(--accent-color)] rounded-lg overflow-hidden shadow-lg bg-[var(--bg-primary)]">
+                <div className="animate-in fade-in duration-100">
+                  <div className="-mx-4 md:-mx-8 px-4 md:px-8 bg-[var(--bg-primary)]">
                     <Editor
                       content={localEditContent}
                       onChange={setLocalEditContent}
                       autoCommentNextLine={settings.autoCommentNextLine}
                       syntaxHighlightRaw={true}
                       autoFocus={true}
+                      minimal={true}
+                      debounceMs={0}
                       className="min-h-[100px] max-h-[60vh]"
                     />
                   </div>

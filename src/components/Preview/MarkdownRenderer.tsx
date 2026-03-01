@@ -12,6 +12,10 @@ interface MarkdownRendererProps {
 }
 
 export const MarkdownRenderer = memo(({ content, syntaxHighlight = true }: MarkdownRendererProps) => {
+  if (!content || content.trim() === '') {
+    return <div className="empty-line" style={{ minHeight: '1.5em', width: '100%', display: 'block' }}></div>;
+  }
+
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm, remarkMath]}
@@ -20,7 +24,7 @@ export const MarkdownRenderer = memo(({ content, syntaxHighlight = true }: Markd
         code: (props) => <CodeBlock {...props} syntaxHighlight={syntaxHighlight} />,
       }}
     >
-      {content || '*No content to preview*'}
+      {content}
     </ReactMarkdown>
   );
 });

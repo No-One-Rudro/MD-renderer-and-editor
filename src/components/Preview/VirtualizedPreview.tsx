@@ -21,6 +21,8 @@ export const VirtualizedPreview: React.FC<VirtualizedPreviewProps> = ({ content,
   const currentStartIndexRef = useRef<number>(0);
   const isProgrammaticScroll = useRef(false);
 
+  const lastTapTimeRef = useRef<number>(0);
+
   // Calculate dynamic overscan based on window height
   useEffect(() => {
     const handleResize = () => {
@@ -106,7 +108,20 @@ export const VirtualizedPreview: React.FC<VirtualizedPreviewProps> = ({ content,
         itemContent={(index, chunk) => (
           <div 
             className="px-4 md:px-8 py-1 markdown-body cursor-pointer hover:bg-black/5 transition-colors duration-200 rounded-sm"
-            onDoubleClick={() => onChunkClick?.(chunk.startLine)}
+            onDoubleClick={(e) => {
+              e.preventDefault();
+              onChunkClick?.(chunk.startLine);
+            }}
+            onTouchStart={(e) => {
+              const currentTime = new Date().getTime();
+              const tapLength = currentTime - lastTapTimeRef.current;
+              if (tapLength > 0 && tapLength < 300) {
+                // Double tap
+                e.preventDefault();
+                onChunkClick?.(chunk.startLine);
+              }
+              lastTapTimeRef.current = currentTime;
+            }}
           >
             <MarkdownRenderer 
               content={chunk.content} 

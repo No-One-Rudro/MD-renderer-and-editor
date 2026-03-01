@@ -197,9 +197,25 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(({
             behavior: 'auto'
           });
         }
+
+        // Move cursor to the line
+        const textarea = syntaxHighlightRaw 
+          ? document.getElementById('code-editor') as HTMLTextAreaElement
+          : textareaRef.current;
+          
+        if (textarea && localContent) {
+          const lines = localContent.split('\n');
+          let charIndex = 0;
+          for (let i = 0; i < Math.min(scrollToLine, lines.length); i++) {
+            charIndex += lines[i].length + 1; // +1 for newline
+          }
+          
+          textarea.focus();
+          textarea.setSelectionRange(charIndex, charIndex);
+        }
       }
     }
-  }, [scrollToLine, percentage, minimal]);
+  }, [scrollToLine, percentage, minimal]); // intentionally omitting localContent to avoid resetting cursor on type
 
   const highlightWithPrism = (code: string) => {
     if (!syntaxHighlightRaw || !Prism.languages.markdown) return code;
